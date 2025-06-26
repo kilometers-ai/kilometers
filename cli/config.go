@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 // Config holds the CLI configuration
@@ -38,6 +39,13 @@ func LoadConfig() (*Config, error) {
 
 	if os.Getenv("KM_DEBUG") == "true" {
 		config.Debug = true
+	}
+
+	// Read batch size from environment if set
+	if batchSize := os.Getenv("KM_BATCH_SIZE"); batchSize != "" {
+		if size, err := strconv.Atoi(batchSize); err == nil && size > 0 {
+			config.BatchSize = size
+		}
 	}
 
 	// Try to load from config file

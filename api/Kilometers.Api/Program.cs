@@ -155,6 +155,18 @@ app.MapPost("/api/events", async (MpcEventDto eventDto, IEventStore eventStore, 
 {
     try
     {
+        // Convert base64 payload to bytes
+        byte[] payloadBytes;
+        try
+        {
+            payloadBytes = Convert.FromBase64String(eventDto.Payload);
+        }
+        catch (FormatException)
+        {
+            logger.LogWarning("Invalid base64 payload for event {EventId}, treating as UTF8 text", eventDto.Id);
+            payloadBytes = System.Text.Encoding.UTF8.GetBytes(eventDto.Payload);
+        }
+
         var mpcEvent = new MpcEvent
         {
             Id = eventDto.Id,
@@ -162,7 +174,7 @@ app.MapPost("/api/events", async (MpcEventDto eventDto, IEventStore eventStore, 
             CustomerId = eventDto.CustomerId ?? "default",
             Direction = eventDto.Direction,
             Method = eventDto.Method,
-            Payload = Convert.FromBase64String(eventDto.Payload),
+            Payload = payloadBytes,
             Size = eventDto.Size,
             Metadata = new EventMetadata
             {
@@ -176,12 +188,12 @@ app.MapPost("/api/events", async (MpcEventDto eventDto, IEventStore eventStore, 
 
         await eventStore.AppendAsync(mpcEvent);
 
-        logger.LogInformation("Event {EventId} processed successfully", eventDto.Id);
+        logger.LogInformation("Event {EventId} processed successfully for customer {CustomerId}", eventDto.Id, mpcEvent.CustomerId);
         return Results.Ok(new { success = true, eventId = eventDto.Id });
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Failed to process event {EventId}", eventDto.Id);
+        logger.LogError(ex, "Failed to process event {EventId}: {ErrorMessage}", eventDto.Id, ex.Message);
         return Results.BadRequest(new { success = false, error = ex.Message });
     }
 });
@@ -190,23 +202,38 @@ app.MapPost("/api/events/batch", async (EventBatchDto batch, IEventStore eventSt
 {
     try
     {
-        var events = batch.Events.Select(dto => new MpcEvent
+        var events = batch.Events.Select(dto =>
         {
-            Id = dto.Id,
-            Timestamp = dto.Timestamp,
-            CustomerId = dto.CustomerId ?? "default",
-            Direction = dto.Direction,
-            Method = dto.Method,
-            Payload = Convert.FromBase64String(dto.Payload),
-            Size = dto.Size,
-            Metadata = new EventMetadata
+            // Convert base64 payload to bytes with fallback
+            byte[] payloadBytes;
+            try
             {
-                ProcessedAt = DateTime.UtcNow,
-                Source = "CLI",
-                Version = "1.0.0",
-                RiskScore = CalculateRiskScore(dto),
-                CostEstimate = CalculateCostEstimate(dto)
+                payloadBytes = Convert.FromBase64String(dto.Payload);
             }
+            catch (FormatException)
+            {
+                logger.LogWarning("Invalid base64 payload for event {EventId}, treating as UTF8 text", dto.Id);
+                payloadBytes = System.Text.Encoding.UTF8.GetBytes(dto.Payload);
+            }
+
+            return new MpcEvent
+            {
+                Id = dto.Id,
+                Timestamp = dto.Timestamp,
+                CustomerId = dto.CustomerId ?? "default",
+                Direction = dto.Direction,
+                Method = dto.Method,
+                Payload = payloadBytes,
+                Size = dto.Size,
+                Metadata = new EventMetadata
+                {
+                    ProcessedAt = DateTime.UtcNow,
+                    Source = "CLI",
+                    Version = "1.0.0",
+                    RiskScore = CalculateRiskScore(dto),
+                    CostEstimate = CalculateCostEstimate(dto)
+                }
+            };
         }).ToList();
 
         await eventStore.AppendBatchAsync(events);
@@ -216,7 +243,7 @@ app.MapPost("/api/events/batch", async (EventBatchDto batch, IEventStore eventSt
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Failed to process event batch");
+        logger.LogError(ex, "Failed to process event batch: {ErrorMessage}", ex.Message);
         return Results.BadRequest(new { success = false, error = ex.Message });
     }
 });
@@ -297,7 +324,8 @@ static string GetPayloadPreview(byte[] payload)
     }
 }
 
-// DTOs
+// DTOs - Note: These duplicate the ones in Domain/Events but are needed for the API endpoints
+// TODO: Refactor to use the domain DTOs directly
 public record MpcEventDto(
     string Id,
     DateTime Timestamp,
@@ -330,12 +358,4 @@ public record MpcEvent
     public EventMetadata Metadata { get; set; } = new();
 }
 
-public record ActivityStats
-{
-    public int TotalEvents { get; set; }
-    public int UniqueMethods { get; set; }
-    public decimal TotalCost { get; set; }
-    public double AverageResponseTime { get; set; }
-    public DateTime? StartTime { get; set; }
-    public DateTime? EndTime { get; set; }
-}
+// ActivityStats is now defined in Domain.Services.IEventStore
