@@ -82,19 +82,22 @@ check_azure_login() {
     fi
 }
 
-# Create terraform.tfvars if it doesn't exist
+# Check terraform.tfvars exists
 setup_terraform_vars() {
-    log_info "Setting up Terraform variables..."
+    log_info "Checking Terraform variables..."
     
     if [ ! -f "terraform/terraform.tfvars" ]; then
-        log_warning "terraform.tfvars not found. Creating from example..."
-        cp terraform/terraform.tfvars.example terraform/terraform.tfvars
-        
-        log_warning "Please edit terraform/terraform.tfvars with your values before continuing"
-        read -p "Press Enter when you've updated the terraform.tfvars file..." -r
+        log_error "terraform/terraform.tfvars not found!"
+        log_info "Please create terraform/terraform.tfvars with required variables:"
+        log_info "  db_password = \"YourSecurePassword123!\""
+        log_info ""
+        log_info "Requirements for db_password:"
+        log_info "  - At least 12 characters long"
+        log_info "  - Mix of uppercase, lowercase, numbers, and special characters"
+        exit 1
     fi
     
-    log_success "Terraform variables configured"
+    log_success "Terraform variables found"
 }
 
 # Deploy infrastructure with Terraform
@@ -103,13 +106,33 @@ deploy_infrastructure() {
     
     cd terraform
     
+    # Check if terraform.tfvars exists
+    if [ ! -f "terraform.tfvars" ]; then
+        log_error "terraform.tfvars file not found!"
+        log_info "Please create terraform.tfvars with the following required variables:"
+        log_info ""
+        log_info "# Example terraform.tfvars"
+        log_info "db_password = \"YourSecurePassword123!\""
+        log_info ""
+        log_info "Requirements for db_password:"
+        log_info "  - At least 12 characters long"
+        log_info "  - Mix of uppercase, lowercase, numbers, and special characters"
+        log_info "  - No quotes or spaces that could cause shell issues"
+        log_info ""
+        log_info "You can copy terraform.tfvars.example as a starting point:"
+        log_info "  cp terraform.tfvars.example terraform.tfvars"
+        log_info ""
+        cd ..
+        exit 1
+    fi
+    
     # Initialize Terraform
     log_info "Initializing Terraform..."
     terraform init
     
     # Plan deployment
     log_info "Creating deployment plan..."
-    terraform plan -out=tfplan
+    terraform plan -var-file="terraform.tfvars" -out=tfplan
     
     # Confirm deployment
     read -p "Deploy the infrastructure? (y/N): " -n 1 -r
@@ -122,7 +145,7 @@ deploy_infrastructure() {
     
     # Apply deployment
     log_info "Applying infrastructure deployment..."
-    terraform apply tfplan
+    terraform apply -var-file="terraform.tfvars" --auto-approve tfplan
     
     # Get outputs
     API_URL=$(terraform output -raw api_url)
