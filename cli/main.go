@@ -40,28 +40,58 @@ type Event struct {
 
 // ProcessWrapper handles the transparent MCP server wrapping
 type ProcessWrapper struct {
-	cmd    *exec.Cmd
-	stdin  io.WriteCloser
-	stdout io.ReadCloser
-	stderr io.ReadCloser
-	events chan Event
-	wg     sync.WaitGroup
-	logger *log.Logger
+	cmd        *exec.Cmd
+	stdin      io.WriteCloser
+	stdout     io.ReadCloser
+	stderr     io.ReadCloser
+	events     chan Event
+	wg         sync.WaitGroup
+	logger     *log.Logger
+	config     *Config
+	apiClient  *APIClient
+	eventBatch []Event
+	batchMutex sync.Mutex
 }
 
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Fprintf(os.Stderr, "Usage: %s <mcp-server-command> [args...]\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "\nExample: %s npx @modelcontextprotocol/server-github\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "\nEnvironment Variables:\n")
+		fmt.Fprintf(os.Stderr, "  KILOMETERS_API_URL - API endpoint (default: http://localhost:5194)\n")
+		fmt.Fprintf(os.Stderr, "  KILOMETERS_API_KEY - API authentication key\n")
+		fmt.Fprintf(os.Stderr, "  KM_DEBUG           - Enable debug logging\n")
+		os.Exit(1)
+	}
+
+	// Load configuration
+	config, err := LoadConfig()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to load configuration: %v\n", err)
 		os.Exit(1)
 	}
 
 	// Initialize logger
 	logger := log.New(os.Stderr, "[km] ", log.LstdFlags)
+	if config.Debug {
+		logger.Printf("Debug mode enabled")
+		logger.Printf("Configuration: API=%s, BatchSize=%d", config.APIEndpoint, config.BatchSize)
+	}
+
 	logger.Printf("Starting Kilometers CLI wrapper for: %v", os.Args[1:])
 
+	// Create API client
+	apiClient := NewAPIClient(config, logger)
+
+	// Test API connection
+	if err := apiClient.TestConnection(); err != nil {
+		logger.Printf("Warning: API connection test failed: %v", err)
+		logger.Printf("Events will be logged locally only")
+		apiClient = nil // Disable API client for this session
+	}
+
 	// Create and start the process wrapper
-	wrapper, err := NewProcessWrapper(os.Args[1], os.Args[2:], logger)
+	wrapper, err := NewProcessWrapper(os.Args[1], os.Args[2:], config, apiClient, logger)
 	if err != nil {
 		logger.Fatalf("Failed to create process wrapper: %v", err)
 	}
@@ -81,7 +111,7 @@ func main() {
 }
 
 // NewProcessWrapper creates a new process wrapper
-func NewProcessWrapper(command string, args []string, logger *log.Logger) (*ProcessWrapper, error) {
+func NewProcessWrapper(command string, args []string, config *Config, apiClient *APIClient, logger *log.Logger) (*ProcessWrapper, error) {
 	cmd := exec.Command(command, args...)
 
 	// Create pipes for monitoring
@@ -101,12 +131,15 @@ func NewProcessWrapper(command string, args []string, logger *log.Logger) (*Proc
 	}
 
 	return &ProcessWrapper{
-		cmd:    cmd,
-		stdin:  stdin,
-		stdout: stdout,
-		stderr: stderr,
-		events: make(chan Event, 100), // Buffered channel for events
-		logger: logger,
+		cmd:        cmd,
+		stdin:      stdin,
+		stdout:     stdout,
+		stderr:     stderr,
+		events:     make(chan Event, 100), // Buffered channel for events
+		logger:     logger,
+		config:     config,
+		apiClient:  apiClient,
+		eventBatch: make([]Event, 0, config.BatchSize),
 	}, nil
 }
 
@@ -232,26 +265,93 @@ func (pw *ProcessWrapper) forwardStderr() {
 	}
 }
 
-// processEvents handles captured events (currently just logs them)
+// processEvents handles captured events and sends them to the API
 func (pw *ProcessWrapper) processEvents() {
 	defer pw.wg.Done()
 
+	// Create a ticker for periodic batch flushing
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
 	eventCount := 0
-	for event := range pw.events {
-		eventCount++
+	for {
+		select {
+		case event, ok := <-pw.events:
+			if !ok {
+				// Channel closed, flush remaining events and exit
+				pw.flushBatch()
+				pw.logger.Printf("Processed %d total events", eventCount)
+				return
+			}
 
-		// For now, just log the events
-		// TODO: Send to API when available
-		pw.logger.Printf("Event #%d: %s %s (%d bytes)",
-			eventCount, event.Direction, event.Method, event.Size)
+			eventCount++
 
-		// In debug mode, could also log the payload
-		if os.Getenv("KM_DEBUG") == "true" {
-			pw.logger.Printf("Payload: %s", string(event.Payload))
+			// Log the event
+			pw.logger.Printf("Event #%d: %s %s (%d bytes)",
+				eventCount, event.Direction, event.Method, event.Size)
+
+			// In debug mode, log the payload
+			if pw.config.Debug {
+				pw.logger.Printf("Payload: %s", string(event.Payload))
+			}
+
+			// Add to batch if API client is available
+			if pw.apiClient != nil {
+				pw.addToBatch(event)
+			}
+
+		case <-ticker.C:
+			// Periodic flush of batched events
+			if pw.apiClient != nil {
+				pw.flushBatch()
+			}
 		}
 	}
+}
 
-	pw.logger.Printf("Processed %d total events", eventCount)
+// addToBatch adds an event to the current batch
+func (pw *ProcessWrapper) addToBatch(event Event) {
+	pw.batchMutex.Lock()
+	defer pw.batchMutex.Unlock()
+
+	pw.eventBatch = append(pw.eventBatch, event)
+
+	// Send batch if it's full
+	if len(pw.eventBatch) >= pw.config.BatchSize {
+		pw.sendBatch()
+	}
+}
+
+// flushBatch sends any remaining events in the batch
+func (pw *ProcessWrapper) flushBatch() {
+	pw.batchMutex.Lock()
+	defer pw.batchMutex.Unlock()
+
+	if len(pw.eventBatch) > 0 {
+		pw.sendBatch()
+	}
+}
+
+// sendBatch sends the current batch to the API (must be called with mutex held)
+func (pw *ProcessWrapper) sendBatch() {
+	if len(pw.eventBatch) == 0 {
+		return
+	}
+
+	// Create a copy of the batch
+	batch := make([]Event, len(pw.eventBatch))
+	copy(batch, pw.eventBatch)
+
+	// Clear the current batch
+	pw.eventBatch = pw.eventBatch[:0]
+
+	// Send asynchronously to avoid blocking
+	go func() {
+		if err := pw.apiClient.SendEventBatch(batch); err != nil {
+			pw.logger.Printf("Failed to send batch to API: %v", err)
+			// TODO: Implement retry logic or local storage fallback
+		}
+	}()
 }
 
 // parseMCPMessage attempts to parse a JSON-RPC message

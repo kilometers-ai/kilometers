@@ -1,0 +1,65 @@
+# .NET build artifacts
+**/bin/
+**/obj/
+
+# .NET specific files
+*.user
+*.suo
+*.cache
+*.docstates
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+
+# Visual Studio files
+.vs/
+*.vsidx
+*.vspscc
+*_i.c
+*_p.c
+*.ncb
+*.opendb
+*.opensdf
+*.sdf
+*.cachefile
+*.VC.db
+*.VC.VC.opendb
+
+# Rider
+.idea/
+
+# Go build artifacts
+/cli/km
+
+# Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfvars
+terraform/*.tfplan
+terraform/*.tfstate
+terraform/*.tfstate.*
+
+# Azure
+*.azurePubxml
+*.pubxml
+*.publishproj
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
