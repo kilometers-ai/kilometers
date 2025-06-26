@@ -81,4 +81,3 @@ github-secrets.txt
 # Additional Azure/deployment artifacts
 *.pubxml.user
 *.azurePubxml.user
-terraform.backup/terraform.tfvars
