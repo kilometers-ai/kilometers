@@ -1,0 +1,108 @@
+name: Deploy API
+
+on:
+  push:
+    paths:
+      - "api/**"
+      - ".github/workflows/deploy-api.yml"
+    branches:
+      - main
+  pull_request:
+    paths:
+      - "api/**"
+      - ".github/workflows/deploy-api.yml"
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: "9.0.x"
+
+jobs:
+  test:
+    name: Test API
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        working-directory: ./api/Kilometers.Api
+        run: dotnet restore
+
+      - name: Build
+        working-directory: ./api/Kilometers.Api
+        run: dotnet build --no-restore
+
+      - name: Test
+        working-directory: ./api/Kilometers.Api
+        run: dotnet test --no-build --verbosity normal
+
+  deploy:
+    name: Deploy API to Azure
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Build and package API
+        working-directory: ./api/Kilometers.Api
+        run: |
+          dotnet restore
+          dotnet build --configuration Release
+          dotnet publish --configuration Release --output ./publish
+
+      - name: Get App Service name from Terraform outputs
+        id: terraform
+        run: |
+          # This assumes terraform outputs are stored in secrets or we query them
+          echo "app_name=${{ secrets.API_APP_SERVICE_NAME }}" >> $GITHUB_OUTPUT
+
+      - name: Deploy to App Service
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ steps.terraform.outputs.app_name }}
+          package: ./api/Kilometers.Api/publish
+
+      - name: Run EF Migrations
+        working-directory: ./api/Kilometers.Api
+        env:
+          ConnectionStrings__Default: ${{ secrets.DATABASE_CONNECTION_STRING }}
+        run: |
+          dotnet tool install --global dotnet-ef
+          dotnet ef database update
+
+  health-check:
+    name: Post-deployment Health Check
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Wait for deployment
+        run: sleep 60
+
+      - name: Check API health
+        run: |
+          API_URL="${{ secrets.API_URL }}"
+          response=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/health")
+          if [ "$response" != "200" ]; then
+            echo "Health check failed with status $response"
+            exit 1
+          fi
+          echo "✅ API is healthy!"

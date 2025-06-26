@@ -1,0 +1,244 @@
+name: Release CLI
+
+on:
+  push:
+    paths:
+      - "cli/**"
+    branches:
+      - main
+    tags:
+      - "cli-v*"
+  pull_request:
+    paths:
+      - "cli/**"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g., v1.0.0)"
+        required: true
+
+env:
+  GO_VERSION: "1.21"
+  BINARY_NAME: "km"
+
+jobs:
+  build:
+    name: Build CLI Binaries
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+            suffix: ""
+          - os: linux
+            arch: arm64
+            suffix: ""
+          - os: darwin
+            arch: amd64
+            suffix: ""
+          - os: darwin
+            arch: arm64
+            suffix: ""
+          - os: windows
+            arch: amd64
+            suffix: ".exe"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Building version: ${VERSION}"
+
+      - name: Build binary
+        run: |
+          cd cli
+          VERSION="${{ steps.version.outputs.version }}"
+          BINARY="km-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.suffix }}"
+
+          # Build with version info
+          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} \
+            go build -ldflags="-s -w -X main.Version=${VERSION}" \
+            -o "dist/${BINARY}" .
+
+          # Create checksums
+          cd dist
+          sha256sum "${BINARY}" > "${BINARY}.sha256"
+
+          echo "Built: ${BINARY}"
+          ls -la
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: km-${{ matrix.os }}-${{ matrix.arch }}
+          path: cli/dist/*
+          retention-days: 7
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          find artifacts -type f -name 'km-*' -exec cp {} release/ \;
+          cd release
+          ls -la
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Kilometers CLI ${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: false
+          files: release/*
+          body: |
+            # Kilometers CLI ${{ steps.version.outputs.version }}
+
+            ## Installation
+
+            ### Quick Install (macOS/Linux)
+            ```bash
+            curl -sSL https://get.kilometers.ai | sh
+            ```
+
+            ### Manual Download
+            Download the appropriate binary for your platform below.
+
+            ## What's Changed
+            - See [CHANGELOG.md](https://github.com/kilometers-ai/kilometers/blob/main/CHANGELOG.md)
+
+            ## Checksums
+            SHA256 checksums are provided for each binary.
+
+  deploy-cdn:
+    name: Deploy to CDN
+    needs: [build, release]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get storage account name
+        id: storage
+        run: |
+          STORAGE_ACCOUNT=$(az storage account list \
+            --resource-group rg-kilometers-prod \
+            --query "[?starts_with(name, 'stkmcli')].name" \
+            --output tsv)
+          echo "account=${STORAGE_ACCOUNT}" >> $GITHUB_OUTPUT
+
+      - name: Upload binaries to Azure Storage
+        run: |
+          VERSION="${{ needs.build.outputs.version }}"
+          STORAGE_ACCOUNT="${{ steps.storage.outputs.account }}"
+
+          # Create version directory
+          az storage blob upload-batch \
+            --account-name "${STORAGE_ACCOUNT}" \
+            --destination "releases/${VERSION}" \
+            --source artifacts \
+            --pattern "*/km-*"
+
+          # Update latest directory
+          az storage blob upload-batch \
+            --account-name "${STORAGE_ACCOUNT}" \
+            --destination "releases/latest" \
+            --source artifacts \
+            --pattern "*/km-*" \
+            --overwrite
+
+      - name: Upload install script
+        run: |
+          STORAGE_ACCOUNT="${{ steps.storage.outputs.account }}"
+
+          # Upload install script
+          az storage blob upload \
+            --account-name "${STORAGE_ACCOUNT}" \
+            --container-name "install" \
+            --name "install.sh" \
+            --file "scripts/install.sh" \
+            --content-type "text/plain" \
+            --overwrite
+
+          # Upload Windows installer (PowerShell)
+          if [ -f "scripts/install.ps1" ]; then
+            az storage blob upload \
+              --account-name "${STORAGE_ACCOUNT}" \
+              --container-name "install" \
+              --name "install.ps1" \
+              --file "scripts/install.ps1" \
+              --content-type "text/plain" \
+              --overwrite
+          fi
+
+      - name: Purge CDN cache
+        run: |
+          CDN_PROFILE="cdnp-kilometers-cli-prod"
+          CDN_ENDPOINT="cdne-kilometers-get-prod"
+          RESOURCE_GROUP="rg-kilometers-prod"
+
+          # Purge specific paths
+          az cdn endpoint purge \
+            --resource-group "${RESOURCE_GROUP}" \
+            --profile-name "${CDN_PROFILE}" \
+            --name "${CDN_ENDPOINT}" \
+            --content-paths "/releases/latest/*" "/install/*"
+
+      - name: Test installation
+        run: |
+          # Wait for CDN propagation
+          sleep 30
+
+          # Test the install script
+          curl -sSL https://get.kilometers.ai/install/install.sh | sh -s -- --help

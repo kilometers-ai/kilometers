@@ -45,7 +45,7 @@ bld/
 # Terraform
 terraform/.terraform/
 terraform/.terraform.lock.hcl
-terraform/terraform.tfvars
+**/*terraform.tfvars*
 terraform/*.tfplan
 terraform/*.tfstate
 terraform/*.tfstate.*
@@ -81,3 +81,4 @@ github-secrets.txt
 # Additional Azure/deployment artifacts
 *.pubxml.user
 *.azurePubxml.user
+terraform.backup/terraform.tfvars
