@@ -4,7 +4,8 @@ using Azure.Extensions.AspNetCore.Configuration.Secrets;
 using Kilometers.Api.Domain.Events;
 using Kilometers.Api.Domain.Services;
 using Kilometers.Api.Infrastructure.EventStore;
-
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add Azure Key Vault configuration in production
@@ -80,14 +81,13 @@ builder.Services.AddCors(options =>
 });
 
 // Health checks
-builder.Services.AddHealthChecks()
-    .AddCheck("api", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy("API is running"));
+var healthChecks = builder.Services.AddHealthChecks()
+    .AddCheck("api", () => HealthCheckResult.Healthy("API is running"));
 
-// Add database health check if using PostgreSQL
+// Only add PostgreSQL health check in production when using PostgreSQL
 if (!builder.Environment.IsDevelopment() && !string.IsNullOrEmpty(connectionString))
 {
-    builder.Services.AddHealthChecks()
-        .AddNpgSql(connectionString, name: "database", tags: new[] { "database" });
+    healthChecks.AddNpgSql(connectionString);
 }
 
 var app = builder.Build();
@@ -104,14 +104,6 @@ app.UseCors();
 
 // Health check endpoints
 app.MapHealthChecks("/health");
-app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
-{
-    Predicate = check => check.Tags.Contains("ready")
-});
-app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
-{
-    Predicate = check => check.Tags.Contains("live")
-});
 
 // Ensure database is created and migrated in production
 if (!app.Environment.IsDevelopment())
