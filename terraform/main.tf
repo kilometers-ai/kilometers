@@ -47,7 +47,7 @@ resource "azurerm_service_plan" "main" {
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
   os_type             = "Linux"
-  sku_name            = "B1" # Basic tier for MVP, can scale later
+  sku_name            = "F1" # Free tier for development/MVP, can scale later
   tags                = local.tags
 }
 
@@ -151,19 +151,24 @@ resource "azurerm_linux_web_app" "api" {
       dotnet_version = "8.0"
     }
 
-    always_on = false # Keep costs low on Basic tier
+    always_on = false # Required for Free tier
+
+    # Health check configuration
+    health_check_path = "/health"
 
     # CORS configuration for frontend
     cors {
-      allowed_origins = ["*"] # Restrict this in production
+      allowed_origins = ["https://*.kilometers.ai", "https://localhost:3000"]
     }
   }
 
   app_settings = {
-    "ASPNETCORE_ENVIRONMENT"                = "Production"
-    "APPLICATIONINSIGHTS_CONNECTION_STRING" = azurerm_application_insights.main.connection_string
-    "ConnectionStrings__Default"            = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=${azurerm_key_vault_secret.db_connection_string.name})"
-    "KeyVault__VaultUri"                    = azurerm_key_vault.main.vault_uri
+    "ASPNETCORE_ENVIRONMENT"                  = "Production"
+    "APPLICATIONINSIGHTS_CONNECTION_STRING"   = azurerm_application_insights.main.connection_string
+    "ConnectionStrings__Default"              = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=${azurerm_key_vault_secret.db_connection_string.name})"
+    "KeyVault__VaultUri"                      = azurerm_key_vault.main.vault_uri
+    "Logging__LogLevel__Default"              = "Information"
+    "Logging__LogLevel__Microsoft.AspNetCore" = "Warning"
   }
 
   identity {

@@ -63,3 +63,21 @@ terraform/*.tfstate.*
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Deployment artifacts and build outputs
+api/Kilometers.Api/deployment.zip
+api/Kilometers.Api/publish/
+
+# Terraform execution plans (may contain sensitive data)
+terraform/tfplan
+terraform/*.tfplan
+
+# Security-sensitive files
+github-secrets.txt
+*secrets*.txt
+*.env
+.env.*
+
+# Additional Azure/deployment artifacts
+*.pubxml.user
+*.azurePubxml.user

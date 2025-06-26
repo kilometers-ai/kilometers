@@ -1,0 +1,44 @@
+# Alternative deployment using Azure Container Instances (ACI)
+# Much more affordable than App Service
+# Cost: ~$5-15/month depending on usage
+
+# Container Group for the API
+resource "azurerm_container_group" "api" {
+  name                = "cg-kilometers-api-${local.resource_suffix}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  ip_address_type     = "Public"
+  dns_name_label      = "kilometers-api-${local.resource_suffix}"
+  os_type             = "Linux"
+  restart_policy      = "Always"
+
+  container {
+    name   = "kilometers-api"
+    image  = "mcr.microsoft.com/dotnet/aspnet:8.0"
+    cpu    = "0.5"
+    memory = "1.5"
+
+    ports {
+      port     = 80
+      protocol = "TCP"
+    }
+
+    environment_variables = {
+      "ASPNETCORE_ENVIRONMENT" = "Production"
+      "ASPNETCORE_URLS"        = "http://+:80"
+    }
+
+    secure_environment_variables = {
+      "ConnectionStrings__Default"            = "Host=${azurerm_postgresql_flexible_server.main.fqdn};Database=${azurerm_postgresql_flexible_server_database.main.name};Username=${azurerm_postgresql_flexible_server.main.administrator_login};Password=${var.db_password};SSL Mode=Require"
+      "APPLICATIONINSIGHTS_CONNECTION_STRING" = azurerm_application_insights.main.connection_string
+    }
+  }
+
+  tags = local.tags
+}
+
+# Output for container instance
+output "container_api_url" {
+  description = "URL of the containerized API"
+  value       = "http://${azurerm_container_group.api.ip_address}"
+} 
