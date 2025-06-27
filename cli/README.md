@@ -146,7 +146,7 @@ The CLI transparently captures:
 ```json
 {
   "id": "evt_1234567890abcdef",
-  "timestamp": "2024-01-15T10:30:45Z",
+      "timestamp": "2025-06-27T10:30:45Z",
   "direction": "request",
   "method": "tools/call",
   "payload": "eyJ0b29sIjogImdpdGh1Yi1zZWFyY2giLCAiYXJncyI6IHt9fQ==",

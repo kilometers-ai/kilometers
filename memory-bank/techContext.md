@@ -38,9 +38,19 @@
   - Storage Account for file/blob storage
   - Application Insights for monitoring
 
-### Frontend (Planned - React)
+### Marketing Site (Next.js 15 - Implemented)
+- **Framework**: Next.js 15 with React 19
+- **UI Components**: Radix UI primitives with custom styling
+- **Styling**: Tailwind CSS with tailwindcss-animate
+- **Forms**: React Hook Form with Zod validation
+- **Charts**: Recharts for analytics visualization
+- **Icons**: Lucide React icon library
+- **Deployment**: Azure Static Web Apps with automated GitHub Actions
+- **Development**: Local dev server on port 3001 (`npm run dev`)
+
+### Frontend (Planned - React Dashboard)
 - **Framework**: React with modern hooks
-- **Styling**: Tailwind CSS
+- **Styling**: Tailwind CSS (shared with marketing)
 - **State Management**: React Query for server state
 - **Deployment**: Static hosting via Azure Storage + CDN
 
@@ -138,12 +148,38 @@ kilometers/
 ## Configuration Management
 
 ### Environment Variables
+
+#### Marketing Site Configuration
 ```bash
-# CLI Configuration
+# Core Features (Critical for OAuth flow)
+NEXT_PUBLIC_USE_EXTERNAL_APP=true  # MUST be true for OAuth redirect
+NEXT_PUBLIC_EXTERNAL_APP_URL=https://app.kilometers.ai
+
+# User Interface Features
+NEXT_PUBLIC_ENABLE_ANALYTICS=true
+NEXT_PUBLIC_SHOW_COOKIE_BANNER=true
+NEXT_PUBLIC_ENABLE_CONTACT_FORM=false
+NEXT_PUBLIC_ENABLE_GITHUB_OAUTH=false
+
+# Connection Verification System (14 total flags)
+NEXT_PUBLIC_ENABLE_REAL_CONNECTION_CHECK=false
+NEXT_PUBLIC_CONNECTION_CHECK_METHOD=polling
+NEXT_PUBLIC_CONNECTION_TIMEOUT_MS=120000
+NEXT_PUBLIC_ENABLE_CONNECTION_TROUBLESHOOTING=false
+NEXT_PUBLIC_ENABLE_MANUAL_VERIFICATION_SKIP=true
+NEXT_PUBLIC_ENABLE_CONFIG_VALIDATION=false
+NEXT_PUBLIC_CONNECTION_CHECK_POLL_INTERVAL_MS=2000
+NEXT_PUBLIC_ENABLE_CONNECTION_ANALYTICS=false
+```
+
+#### CLI Configuration
+```bash
 KILOMETERS_API_URL=https://api.kilometers.ai
 KILOMETERS_API_KEY=user_api_key
+```
 
-# API Configuration
+#### API Configuration
+```bash
 ASPNETCORE_ENVIRONMENT=Production
 ConnectionStrings__Default=postgresql_connection_string
 ApplicationInsights__InstrumentationKey=insights_key
@@ -173,6 +209,53 @@ ApplicationInsights__InstrumentationKey=insights_key
 - **Change Management**: PR-based infrastructure changes
 - **Secrets Management**: Azure Key Vault integration
 - **Backup Strategy**: Automated PostgreSQL backups
+
+## Marketing Infrastructure Requirements
+
+### Azure Static Web Apps Configuration
+- **Service**: Azure Static Web Apps (Standard tier for custom domains)
+- **Custom Domain**: kilometers.ai with SSL certificate management
+- **Deployment**: GitHub Actions integration with automated builds
+- **Environment**: Separate staging and production slots
+
+### Required Terraform Modules
+```hcl
+# Static Web App for marketing site
+resource "azurerm_static_web_app" "marketing" {
+  name                = "kilometers-marketing"
+  resource_group_name = azurerm_resource_group.main.name
+  location           = azurerm_resource_group.main.location
+  sku_tier           = "Standard"  # Required for custom domains
+  
+  app_settings = {
+    NEXT_PUBLIC_USE_EXTERNAL_APP = "true"
+    NEXT_PUBLIC_EXTERNAL_APP_URL = var.external_app_url
+    # Additional environment variables from feature flags
+  }
+}
+
+# Service Principal for GitHub Actions
+resource "azuread_application" "marketing_deployment" {
+  display_name = "kilometers-marketing-deployment"
+}
+
+resource "azuread_service_principal" "marketing_deployment" {
+  application_id = azuread_application.marketing_deployment.application_id
+}
+
+# Role assignment for Static Web App deployment
+resource "azurerm_role_assignment" "static_web_app_contributor" {
+  scope                = azurerm_static_web_app.marketing.id
+  role_definition_name = "Static Web App Contributor"
+  principal_id         = azuread_service_principal.marketing_deployment.object_id
+}
+```
+
+### Security & Access Requirements
+- **GitHub Actions Service Principal**: For automated deployment authentication
+- **Static Web App API Token**: Secure token for deployment operations
+- **Custom Domain Management**: DNS configuration and SSL certificate automation
+- **Environment Isolation**: Separate development and production configurations
 
 ## Monitoring & Observability
 
@@ -220,4 +303,4 @@ As of the current phase, all technology choices have been implemented and are wo
 
 *Technical implementation is complete and ready for production deployment.*
 
-*Last Updated: During production readiness verification* 
+*Last Updated: During marketing site integration and infrastructure planning phase* 

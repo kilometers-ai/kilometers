@@ -22,13 +22,22 @@ Kilometers.ai monitors AI agent activity by wrapping MCP (Model Context Protocol
 - Ensure zero-friction installation and setup
 - Scale from individual developers to enterprise teams
 
+### Marketing & User Acquisition Goals
+- **Landing Page Experience**: Compelling marketing site explaining the value proposition
+- **30-Second Onboarding**: Seamless flow from visitor to authenticated user
+- **OAuth Integration**: Initiate GitHub authentication from marketing site, complete in main application
+- **Conversion Optimization**: Track and optimize visitor-to-customer conversion funnel
+- **Multi-Environment**: Support development and production with feature flags
+
 ### Success Criteria
 - **Day 1**: CLI wrapper functional for major MCP servers
 - **Day 3**: Cloud backend operational with dashboard
 - **Day 7**: 3 paying customers ($147 MRR)
 - **Day 30**: 100 customers ($4,900 MRR)
+- **Marketing KPIs**: 5% landing page conversion rate, <2s page load time
 
 ## Technical Strategy
+**Phase 0**: Marketing landing page with Azure Static Web Apps deployment
 **Phase 1**: Go CLI wrapper that pipes MCP traffic
 **Phase 2**: Azure-hosted .NET API for event processing
 **Phase 3**: React dashboard for visualization
@@ -47,4 +56,5 @@ Targeting AI power users and organizations who need visibility into their AI age
 - Must work transparently with existing MCP setups
 - No modification required to existing AI tools
 - Minimal performance overhead
-- Cross-platform compatibility (Windows, macOS, Linux) 
+- Cross-platform compatibility (Windows, macOS, Linux)
+- Marketing site must seamlessly hand off to main application 

@@ -108,6 +108,23 @@ output "cli_releases_url" {
   value       = module.cli_distribution.releases_container_url
 }
 
+# Static Web App Outputs
+output "marketing_site_url" {
+  description = "URL of the marketing site"
+  value       = "https://${module.static_web_app.default_host_name}"
+}
+
+output "static_web_app_name" {
+  description = "Name of the Azure Static Web App"
+  value       = module.static_web_app.static_web_app_name
+}
+
+output "static_web_app_api_key" {
+  description = "API key for Static Web App deployment"
+  value       = module.static_web_app.api_key
+  sensitive   = true
+}
+
 # GitHub Service Principal Outputs
 output "github_actions_client_id" {
   description = "The Client ID of the GitHub Actions service principal."

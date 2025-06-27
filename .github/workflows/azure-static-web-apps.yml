@@ -1,0 +1,81 @@
+name: Azure Static Web Apps CI/CD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "marketing/**"
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches:
+      - main
+    paths:
+      - "marketing/**"
+
+jobs:
+  build_and_deploy_job:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    runs-on: ubuntu-latest
+    name: Build and Deploy Job
+    defaults:
+      run:
+        working-directory: ./marketing
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          lfs: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: "marketing/package-lock.json"
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build Application
+        run: npm run build:azure
+        env:
+          NEXT_PUBLIC_USE_EXTERNAL_APP: ${{ secrets.NEXT_PUBLIC_USE_EXTERNAL_APP }}
+          NEXT_PUBLIC_EXTERNAL_APP_URL: ${{ secrets.NEXT_PUBLIC_EXTERNAL_APP_URL }}
+          NEXT_PUBLIC_ENABLE_ANALYTICS: ${{ secrets.NEXT_PUBLIC_ENABLE_ANALYTICS }}
+          NEXT_PUBLIC_SHOW_COOKIE_BANNER: ${{ secrets.NEXT_PUBLIC_SHOW_COOKIE_BANNER }}
+          NEXT_PUBLIC_ENABLE_CONTACT_FORM: ${{ secrets.NEXT_PUBLIC_ENABLE_CONTACT_FORM }}
+          NEXT_PUBLIC_ENABLE_GITHUB_OAUTH: ${{ secrets.NEXT_PUBLIC_ENABLE_GITHUB_OAUTH }}
+          # Connection Verification Feature Flags
+          NEXT_PUBLIC_ENABLE_REAL_CONNECTION_CHECK: ${{ secrets.NEXT_PUBLIC_ENABLE_REAL_CONNECTION_CHECK }}
+          NEXT_PUBLIC_CONNECTION_CHECK_METHOD: ${{ secrets.NEXT_PUBLIC_CONNECTION_CHECK_METHOD }}
+          NEXT_PUBLIC_CONNECTION_TIMEOUT_MS: ${{ secrets.NEXT_PUBLIC_CONNECTION_TIMEOUT_MS }}
+          NEXT_PUBLIC_ENABLE_CONNECTION_TROUBLESHOOTING: ${{ secrets.NEXT_PUBLIC_ENABLE_CONNECTION_TROUBLESHOOTING }}
+          NEXT_PUBLIC_ENABLE_MANUAL_VERIFICATION_SKIP: ${{ secrets.NEXT_PUBLIC_ENABLE_MANUAL_VERIFICATION_SKIP }}
+          NEXT_PUBLIC_ENABLE_CONFIG_VALIDATION: ${{ secrets.NEXT_PUBLIC_ENABLE_CONFIG_VALIDATION }}
+          NEXT_PUBLIC_CONNECTION_CHECK_POLL_INTERVAL_MS: ${{ secrets.NEXT_PUBLIC_CONNECTION_CHECK_POLL_INTERVAL_MS }}
+          NEXT_PUBLIC_ENABLE_CONNECTION_ANALYTICS: ${{ secrets.NEXT_PUBLIC_ENABLE_CONNECTION_ANALYTICS }}
+
+      - name: Build And Deploy
+        id: builddeploy
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: "upload"
+          app_location: "/marketing"
+          api_location: ""
+          output_location: "out"
+
+  close_pull_request_job:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    name: Close Pull Request Job
+    steps:
+      - name: Close Pull Request
+        id: closepullrequest
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          action: "close"
+          app_location: "/marketing"

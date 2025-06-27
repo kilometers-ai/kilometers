@@ -247,6 +247,26 @@ module "cli_distribution" {
   tags                = local.tags
 }
 
+# Static Web App Module for Marketing Site
+module "static_web_app" {
+  source = "./modules/static_web_app"
+
+  static_web_app_name = "stapp-${local.project_name}-marketing-${local.environment}-${local.resource_suffix}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  sku_tier            = var.environment == "prod" ? "Standard" : "Free"
+  sku_size            = var.environment == "prod" ? "Standard" : "Free"
+
+  app_settings = {
+    # Future: Add any required app settings here
+  }
+
+  # Prepared for custom domain (kilometers.ai)
+  custom_domain = var.environment == "prod" ? "kilometers.ai" : ""
+
+  tags = local.tags
+}
+
 # --- GitHub Service Principal for CI/CD ---
 # Use a data source to look up the existing service principal used by the pipeline
 data "azuread_service_principal" "github_actions" {
@@ -342,6 +362,46 @@ resource "github_actions_secret" "gh_token" {
   repository      = data.github_repository.main.name
   secret_name     = "GH_TOKEN"
   plaintext_value = var.github_token
+}
+
+# Static Web App GitHub Secrets
+resource "github_actions_secret" "azure_static_web_apps_api_token" {
+  repository      = data.github_repository.main.name
+  secret_name     = "AZURE_STATIC_WEB_APPS_API_TOKEN"
+  plaintext_value = module.static_web_app.api_key
+
+  depends_on = [module.static_web_app]
+}
+
+# Marketing Site Environment Variables
+locals {
+  marketing_environment_variables = {
+    # Core Application Settings
+    "NEXT_PUBLIC_USE_EXTERNAL_APP"    = "false"
+    "NEXT_PUBLIC_EXTERNAL_APP_URL"    = "https://app.kilometers.ai"
+    "NEXT_PUBLIC_ENABLE_ANALYTICS"    = "true"
+    "NEXT_PUBLIC_SHOW_COOKIE_BANNER"  = "true"
+    "NEXT_PUBLIC_ENABLE_CONTACT_FORM" = "false"
+    "NEXT_PUBLIC_ENABLE_GITHUB_OAUTH" = "false"
+
+    # Connection Verification Features (Safe Defaults)
+    "NEXT_PUBLIC_ENABLE_REAL_CONNECTION_CHECK"      = "false"
+    "NEXT_PUBLIC_CONNECTION_CHECK_METHOD"           = "polling"
+    "NEXT_PUBLIC_CONNECTION_TIMEOUT_MS"             = "120000"
+    "NEXT_PUBLIC_ENABLE_CONNECTION_TROUBLESHOOTING" = "false"
+    "NEXT_PUBLIC_ENABLE_MANUAL_VERIFICATION_SKIP"   = "true"
+    "NEXT_PUBLIC_ENABLE_CONFIG_VALIDATION"          = "false"
+    "NEXT_PUBLIC_CONNECTION_CHECK_POLL_INTERVAL_MS" = "2000"
+    "NEXT_PUBLIC_ENABLE_CONNECTION_ANALYTICS"       = "false"
+  }
+}
+
+# Store each marketing environment variable as GitHub secret
+resource "github_actions_secret" "marketing_env_vars" {
+  for_each        = local.marketing_environment_variables
+  repository      = data.github_repository.main.name
+  secret_name     = each.key
+  plaintext_value = each.value
 }
 
 # Data source for current Azure config

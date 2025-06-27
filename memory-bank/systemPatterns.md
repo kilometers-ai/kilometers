@@ -2,8 +2,14 @@
 
 ## Overall Architecture
 
-### High-Level System Design
+### Multi-App System Design
 ```
+┌─────────────────┐                      ┌─────────────────┐
+│  Marketing Site │    GitHub OAuth      │   Main App      │
+│ (Next.js/Azure) │◄────initiate─────────│ (React/Azure)   │
+│ kilometers.ai   │                      │app.kilometers.ai│
+└─────────────────┘                      └─────────┬───────┘
+                                                   │
 ┌─────────────────┐    ┌──────────────┐    ┌─────────────────┐
 │   AI Client     │    │  km CLI      │    │  MCP Server     │
 │ (Cursor/Claude) │◄──►│   Wrapper    │◄──►│ (GitHub/Slack)  │
@@ -60,6 +66,72 @@ public record MpcEvent
     public EventMetadata Metadata { get; init; }
 }
 ```
+
+## Marketing Site Architecture Patterns
+
+### 3. Split OAuth Authentication Pattern
+The marketing site initiates OAuth but the main application handles completion and token management.
+
+```typescript
+// Marketing Site: OAuth Initiation
+export function middleware(request: NextRequest) {
+  const useExternalApp = process.env.NEXT_PUBLIC_USE_EXTERNAL_APP === "true"
+  const externalAppUrl = process.env.NEXT_PUBLIC_EXTERNAL_APP_URL
+  
+  // Routes that should redirect to external app when feature flag is enabled
+  const appRoutes = ["/dashboard", "/onboarding", "/billing"]
+  
+  if (useExternalApp && appRoutes.some(route => 
+    request.nextUrl.pathname.startsWith(route)
+  )) {
+    const redirectUrl = new URL(
+      request.nextUrl.pathname + request.nextUrl.search, 
+      externalAppUrl
+    )
+    return NextResponse.redirect(redirectUrl)
+  }
+}
+```
+
+### 4. Feature Flag-Driven Architecture Pattern
+Environment variables control behavior across development and production environments.
+
+```typescript
+// Feature Flag System
+const getFeatureFlags = (): FeatureFlags => {
+  if (typeof window === "undefined") {
+    // Server-side: use environment variables
+    return {
+      USE_EXTERNAL_APP: process.env.NEXT_PUBLIC_USE_EXTERNAL_APP === "true",
+      EXTERNAL_APP_URL: process.env.NEXT_PUBLIC_EXTERNAL_APP_URL || "https://app.kilometers.ai",
+      ENABLE_GITHUB_OAUTH: process.env.NEXT_PUBLIC_ENABLE_GITHUB_OAUTH === "true",
+      ENABLE_REAL_CONNECTION_CHECK: process.env.NEXT_PUBLIC_ENABLE_REAL_CONNECTION_CHECK === "true",
+      // ... 10 more feature flags
+    }
+  }
+  return defaultFlags
+}
+```
+
+### 5. Client-Side Suspense Pattern
+Components using client-side hooks are wrapped in Suspense for proper SSR/hydration.
+
+```typescript
+// Suspense Wrapper Pattern
+import { Suspense } from 'react'
+
+function OnboardingPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <OnboardingClient />
+    </Suspense>
+  )
+}
+
+function OnboardingClient() {
+  const searchParams = useSearchParams() // Client-side hook
+  // Component logic using searchParams
+}
 
 ## API Architecture Patterns
 

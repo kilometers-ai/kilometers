@@ -60,6 +60,22 @@ Just as cars have odometers to track distance, Kilometers.ai provides an "odomet
 
 ## User Experience Goals
 
+### Marketing Site Experience
+- **First Impression**: Clear value proposition within 5 seconds of landing
+- **Problem Recognition**: Help visitors identify they have an AI monitoring problem
+- **Solution Demonstration**: Interactive demos showing the dashboard in action
+- **Trust Building**: Social proof, testimonials, and technical credibility
+- **Call-to-Action**: Single-click GitHub OAuth to start the onboarding process
+
+### Visitor-to-Customer Journey
+```
+[Marketing Landing] → [GitHub OAuth Initiation] → [Main App Authentication] 
+        ↓                      ↓                        ↓
+[Value Proposition]    [Permission Consent]     [CLI Installation Guide]
+        ↓                      ↓                        ↓
+[Interactive Demo]     [Redirect to App]        [30-Second Setup Complete]
+```
+
 ### Developer Experience
 - **Setup**: Single command installation (`curl -sSL https://get.kilometers.ai | sh`)
 - **Usage**: Replace `mcp-server` with `km mcp-server` - that's it
@@ -83,6 +99,12 @@ Just as cars have odometers to track distance, Kilometers.ai provides an "odomet
 - Developers using AI coding assistants
 - Teams with custom AI workflows
 - Organizations with AI agent deployments
+
+### Prospects: Discovery Phase
+- Developers searching for AI monitoring solutions
+- Teams evaluating AI governance tools
+- Organizations concerned about AI costs and security
+- Technical decision-makers researching AI infrastructure
 
 ### Secondary: IT Operations
 - DevOps teams managing AI infrastructure
@@ -116,6 +138,12 @@ Just as cars have odometers to track distance, Kilometers.ai provides an "odomet
 - **Retention**: Monthly active users
 - **Value Realization**: Cost savings identified per user
 
+### Marketing Metrics
+- **Conversion Rate**: Landing page visitors to authenticated users
+- **Funnel Optimization**: Drop-off points in onboarding flow
+- **Page Performance**: Load times and Core Web Vitals
+- **User Acquisition**: Organic vs paid traffic conversion
+
 ### Business Metrics
 - **Customer Growth**: New sign-ups per week
 - **Revenue Growth**: MRR progression
@@ -132,11 +160,13 @@ The complete Kilometers.ai system is now implemented and ready for production de
 - **CLI Wrapper**: Fully functional transparent MCP monitoring
 - **Cloud API**: Complete event ingestion and analytics backend
 - **Infrastructure**: Production-ready Azure deployment automation
+- **Marketing Site**: Complete Next.js landing page with OAuth integration
 - **User Experience**: 30-second setup achieved with single command installation
 
 ### Ready for Market Validation
 - **Core Value Proposition**: Delivered - transparent monitoring with zero setup friction
 - **Technical Differentiation**: Proven - works with any MCP server without modification
-- **Go-to-Market**: Ready - comprehensive documentation and demo materials prepared
+- **Go-to-Market**: Ready - comprehensive marketing site and demo materials prepared
+- **User Onboarding**: Complete visitor-to-customer flow implemented
 
-*Last Updated: During production readiness phase* 
+*Last Updated: During marketing site integration phase* 

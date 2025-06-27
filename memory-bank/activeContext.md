@@ -5,8 +5,8 @@
 ### Project Status: CI/CD Implemented ✅
 **BREAKTHROUGH COMPLETE!** A full suite of component-based CI/CD pipelines has been implemented using GitHub Actions. The project now has separate, automated workflows for the API, the infrastructure (Terraform), and the CLI tool. This automates the entire deployment process, triggered by pushes to the `main` branch.
 
-### Current Priority: Market Validation & Customer Acquisition
-With the core technical infrastructure and deployment automation complete, the focus now shifts to go-to-market activities. The next critical step is to execute the launch plan, attract the first users, and validate the product's value proposition.
+### Current Priority: Infrastructure Enhancement & Launch Preparation
+With the core technical infrastructure, marketing site, and deployment automation complete, the immediate priority is enhancing the Terraform infrastructure to support marketing site deployment. Following this, the focus shifts to go-to-market activities and customer acquisition.
 
 ## Recent Changes
 
@@ -15,6 +15,8 @@ With the core technical infrastructure and deployment automation complete, the f
 - **Automated API Deployment**: The `.github/workflows/deploy-api.yml` workflow automatically builds and deploys the .NET API to the Azure App Service on changes to the `api/` directory.
 - **Automated Infrastructure Deployment**: The `.github/workflows/deploy-infra.yml` workflow automatically runs `terraform plan` and `apply` on changes to the `terraform/` directory.
 - **Automated CLI Release**: The `.github/workflows/deploy-cli.yml` workflow automatically builds the Go CLI for multiple platforms and creates a GitHub Release with the binaries on changes to the `cli/` directory.
+- **Marketing Site Integration**: Migrated complete Next.js marketing site into `/marketing/` directory with all configurations and CI/CD workflow.
+- **Memory Bank Updated**: Integrated marketing site architecture patterns, environment variables, and infrastructure requirements into primary memory bank.
 - **Removed Manual Friction**: The development deployment process is now fully automated, removing the need for manual approvals.
 
 ## Next Steps (Go-to-Market)
@@ -26,13 +28,26 @@ With the core technical infrastructure and deployment automation complete, the f
    - Ensure `README.md` files reflect the new automated deployment process.
    - Update `progress.md` to mark CI/CD as complete.
 
+### Immediate Priority (This Week)
+1. **Enhance Terraform Infrastructure**
+   - Create Azure Static Web Apps module for marketing site hosting
+   - Provision GitHub Actions service principal with appropriate roles
+   - Configure custom domain (kilometers.ai) and SSL certificate management
+   - Set up environment variable management for 14 marketing feature flags
+
 ### Short Term (Next Week)
-1.  **Execute Launch Plan**
-   - Announce the availability of Kilometers.ai on relevant channels.
-   - Begin outreach to initial target users.
-2.  **Monitor Initial Usage**
-   - Use the Kilometers.ai dashboard and Azure Application Insights to monitor system health and user activity.
-   - Gather feedback from the first cohort of users.
+1. **Deploy Marketing Infrastructure**
+   - Apply enhanced Terraform configuration to provision marketing resources
+   - Configure GitHub repository secrets for Azure Static Web Apps deployment
+   - Test end-to-end deployment pipeline for marketing site
+2. **Execute Launch Plan**
+   - Deploy marketing site to production with custom domain
+   - Test complete visitor-to-customer OAuth flow
+   - Begin outreach to initial target users
+3. **Monitor Initial Usage**
+   - Use Azure Application Insights to monitor both marketing and API performance
+   - Track conversion funnel from marketing site to authenticated users
+   - Gather feedback from the first cohort of users
 
 ---
 *Last Updated: After successfully implementing the full CI/CD pipeline.*

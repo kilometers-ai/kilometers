@@ -156,7 +156,7 @@ Authorization: Bearer <api-key>
   "events": [
     {
       "id": "evt_1234567890abcdef",
-      "timestamp": "2024-01-15T10:30:45Z",
+      "timestamp": "2025-06-27T10:30:45Z",
       "customerId": "user_123",
       "direction": "request",
       "method": "tools/call",
@@ -165,7 +165,7 @@ Authorization: Bearer <api-key>
     }
   ],
   "cliVersion": "1.0.0",
-  "batchTimestamp": "2024-01-15T10:30:45Z"
+      "batchTimestamp": "2025-06-27T10:30:45Z"
 }
 ```
 
@@ -316,7 +316,7 @@ dotnet test --environment Testing
 # Test API endpoints
 curl -X POST https://localhost:5194/api/events \
   -H "Content-Type: application/json" \
-  -d '{"id":"test","timestamp":"2024-01-15T10:30:45Z","direction":"request","payload":"dGVzdA==","size":4}'
+  -d '{"id":"test","timestamp":"2025-06-27T10:30:45Z","direction":"request","payload":"dGVzdA==","size":4}'
 ```
 
 ### Load Testing

@@ -1,0 +1,101 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+## Date Management & Time Reference System
+
+### Current Date Context
+**Today**: Friday, June 27, 2025
+**Current Quarter**: Q2 2025
+**Current Year**: 2025
+
+### Date Reference Guidelines
+
+#### 1. Always Use Current Date Context
+When writing or updating documentation, always reference the current date above. This ensures:
+- Roadmap items are realistically dated
+- "Coming soon" references are accurate
+- Example timestamps reflect recent dates
+- Project timelines are current
+
+#### 2. Documentation Date Patterns
+
+**Example Timestamps**: Use recent dates, not old 2024 examples
+```bash
+# ✅ Good - Recent examples
+"timestamp": "2025-06-27T10:30:45Z"
+"created": "2025-06-26T14:22:15Z"
+
+# ❌ Bad - Outdated examples  
+"timestamp": "2024-01-15T10:30:45Z"
+```
+
+**Roadmap References**: Update based on current quarter
+```markdown
+# ✅ Current roadmap (we're in Q2 2025)
+- Q3 2025: Dashboard application and user authentication
+- Q4 2025: Advanced analytics and ML-powered insights
+- Q1 2026: Enterprise SSO and multi-tenant features
+
+# ❌ Outdated roadmap
+- Q1 2025: Dashboard application (this quarter has passed)
+```
+
+#### 3. CLI Commands for Date References
+
+When needing current date information, use these commands:
+```bash
+# Get current date in ISO format
+date -u +"%Y-%m-%dT%H:%M:%SZ"
+
+# Get current quarter info
+date +"%Y Q$((($(date +%-m)-1)/3+1))"
+
+# Get relative dates for examples
+date -u -d "1 day ago" +"%Y-%m-%dT%H:%M:%SZ"
+date -u -d "1 week ago" +"%Y-%m-%dT%H:%M:%SZ"
+```
+
+#### 4. Automatic Date Validation
+
+When updating documentation, always check for:
+- [ ] Outdated quarter references (Q1-Q4 with past years)
+- [ ] Example timestamps from previous years
+- [ ] "Coming soon" items with past dates
+- [ ] Roadmap items that should have moved to "Completed"
+
+#### 5. Project-Specific Date Rules
+
+**Kilometers.ai Timeline Context:**
+- **Q4 2024**: Core technical foundation completed
+- **Q1 2025**: CI/CD and marketing site completed  
+- **Q2 2025** (Current): Production ready, market validation phase
+- **Q3 2025**: Planned dashboard development
+- **Q4 2025**: Advanced analytics and enterprise features
+
+**Status Updates:**
+- Items marked "Q1 2025" that aren't done → Move to "Q3 2025" 
+- Items completed → Mark as "✅ Completed Q1/Q2 2025"
+- Current work → Mark as "🚧 In Progress Q2 2025"
+
+#### 6. Memory Bank Date Updates
+
+When updating memory bank files, include current date context:
+```markdown
+*Last Updated: June 27, 2025 - During production deployment phase*
+*Next Update: After Q3 2025 dashboard completion*
+```
+
+### Quick Date Reference Card
+```
+Today: Friday, June 27, 2025
+Week: Week 26 of 2025
+Quarter: Q2 2025 (April-June)
+Next Quarter: Q3 2025 (July-September)
+Year Progress: ~49% complete (178/365 days)
+```
+
+---
+
+*This rule file ensures all project documentation maintains accurate, current date references and realistic timelines.*
