@@ -193,6 +193,7 @@ jobs:
 
           # Create version directory
           az storage blob upload-batch \
+            --auth-mode login \
             --account-name "${STORAGE_ACCOUNT}" \
             --destination "releases/${VERSION}" \
             --source artifacts \
@@ -200,6 +201,7 @@ jobs:
 
           # Update latest directory
           az storage blob upload-batch \
+            --auth-mode login \
             --account-name "${STORAGE_ACCOUNT}" \
             --destination "releases/latest" \
             --source artifacts \
@@ -210,24 +212,21 @@ jobs:
         run: |
           STORAGE_ACCOUNT="${{ steps.storage.outputs.account }}"
 
-          # Upload install script
-          az storage blob upload \
-            --account-name "${STORAGE_ACCOUNT}" \
-            --container-name "install" \
-            --name "install.sh" \
-            --file "scripts/install.sh" \
-            --content-type "text/plain" \
-            --overwrite
+          # Skip install script upload for now - file doesn't exist
+          echo "Skipping install script upload - scripts/install.sh not found"
 
-          # Upload Windows installer (PowerShell)
+          # Upload Windows installer (PowerShell) if it exists
           if [ -f "scripts/install.ps1" ]; then
             az storage blob upload \
+              --auth-mode login \
               --account-name "${STORAGE_ACCOUNT}" \
               --container-name "install" \
               --name "install.ps1" \
               --file "scripts/install.ps1" \
               --content-type "text/plain" \
               --overwrite
+          else
+            echo "Skipping Windows installer upload - scripts/install.ps1 not found"
           fi
         env:
           ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
