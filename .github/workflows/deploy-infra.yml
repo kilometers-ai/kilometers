@@ -27,6 +27,10 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: DEBUG - Echo Client ID
+        run: |
+          echo "The Client ID is: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientId }}"
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:

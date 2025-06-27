@@ -50,7 +50,6 @@ locals {
   environment     = var.environment
   project_name    = "kilometers"
 
-  # Common tags
   tags = {
     Environment = local.environment
     Project     = local.project_name
