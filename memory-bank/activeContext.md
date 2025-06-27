@@ -2,60 +2,64 @@
 
 ## Current Work Focus
 
-### Project Status: CI/CD Implemented ✅
-**BREAKTHROUGH COMPLETE!** A full suite of component-based CI/CD pipelines has been implemented using GitHub Actions. The project now has separate, automated workflows for the API, the infrastructure (Terraform), and the CLI tool. This automates the entire deployment process, triggered by pushes to the `main` branch.
+### Project Status: Marketing Site Deployed ✅
+**BREAKTHROUGH COMPLETE!** Azure Static Web Apps infrastructure has been successfully deployed with automated CI/CD pipeline. The marketing site is now live with clean dependency management and all feature flags configured.
 
-### Current Priority: Infrastructure Enhancement & Launch Preparation
-With the core technical infrastructure, marketing site, and deployment automation complete, the immediate priority is enhancing the Terraform infrastructure to support marketing site deployment. Following this, the focus shifts to go-to-market activities and customer acquisition.
+### Current Priority: Custom Domain Configuration & Launch
+With the marketing site infrastructure deployed and functional, the immediate priority is configuring the custom domain (kilometers.ai) for both the marketing site and API services. Following this, the project will be fully launch-ready for customer acquisition.
 
 ## Recent Changes
 
 ### ✅ Completed Major Milestones
-- **Implemented Component-Based CI/CD**: Created three separate GitHub Actions workflows for the API, infrastructure, and CLI.
-- **Automated API Deployment**: The `.github/workflows/deploy-api.yml` workflow automatically builds and deploys the .NET API to the Azure App Service on changes to the `api/` directory.
-- **Automated Infrastructure Deployment**: The `.github/workflows/deploy-infra.yml` workflow automatically runs `terraform plan` and `apply` on changes to the `terraform/` directory.
-- **Automated CLI Release**: The `.github/workflows/deploy-cli.yml` workflow automatically builds the Go CLI for multiple platforms and creates a GitHub Release with the binaries on changes to the `cli/` directory.
-- **Marketing Site Integration**: Migrated complete Next.js marketing site into `/marketing/` directory with all configurations and CI/CD workflow.
-- **Memory Bank Updated**: Integrated marketing site architecture patterns, environment variables, and infrastructure requirements into primary memory bank.
-- **Removed Manual Friction**: The development deployment process is now fully automated, removing the need for manual approvals.
+- **Azure Static Web Apps Deployed**: Complete Terraform module created and provisioned
+- **Marketing Site Live**: https://kind-meadow-0cc78e710.1.azurestaticapps.net
+- **Clean Dependency Management**: Resolved conflicting dependencies (date-fns, react-day-picker) by removing unused packages
+- **GitHub Actions Pipeline**: Automated deployment workflow functional for marketing site
+- **Feature Flag System**: All 14 environment variables configured and deployed
+- **State Management Lesson**: Learned critical Terraform state consistency patterns
+- **Targeted Deployment**: Successfully used terraform targeted apply to avoid infrastructure disruption
 
-## Next Steps (Go-to-Market)
+### ✅ Infrastructure Enhancement Complete
+- **Static Web App Module**: `terraform/modules/static_web_app/` with full configuration
+- **API Token Management**: `AZURE_STATIC_WEB_APPS_API_TOKEN` auto-generated and configured
+- **Environment Variables**: 14 marketing feature flags stored as GitHub secrets
+- **Build Pipeline**: Next.js static export optimized for Azure deployment
+- **Clean Architecture**: Removed unused UI components and dependencies
 
-### Immediate (This Session)
-1.  **Finalize Git Repository**
-   - Push all new workflow files to the `main` branch to activate the pipelines.
-2.  **Update Documentation**
-   - Ensure `README.md` files reflect the new automated deployment process.
-   - Update `progress.md` to mark CI/CD as complete.
+## Next Steps (Domain & Launch)
 
-### Immediate Priority (This Week)
-1. **Enhance Terraform Infrastructure**
-   - Create Azure Static Web Apps module for marketing site hosting
-   - Provision GitHub Actions service principal with appropriate roles
-   - Configure custom domain (kilometers.ai) and SSL certificate management
-   - Set up environment variable management for 14 marketing feature flags
+### Immediate Priority (Next Session)
+1. **Custom Domain Configuration**
+   - Configure kilometers.ai CNAME for Azure Static Web Apps
+   - Set up app.kilometers.ai subdomain for API services
+   - Configure SSL certificates and DNS validation
+   - Test end-to-end domain functionality
 
-### Short Term (Next Week)
-1. **Deploy Marketing Infrastructure**
-   - Apply enhanced Terraform configuration to provision marketing resources
-   - Configure GitHub repository secrets for Azure Static Web Apps deployment
-   - Test end-to-end deployment pipeline for marketing site
-2. **Execute Launch Plan**
-   - Deploy marketing site to production with custom domain
-   - Test complete visitor-to-customer OAuth flow
-   - Begin outreach to initial target users
-3. **Monitor Initial Usage**
-   - Use Azure Application Insights to monitor both marketing and API performance
-   - Track conversion funnel from marketing site to authenticated users
-   - Gather feedback from the first cohort of users
+### Short Term (This Week)
+1. **Production Deployment**
+   - Deploy marketing site to production environment
+   - Configure production feature flags
+   - Test complete OAuth flow from custom domain
+2. **Launch Preparation**
+   - Verify all monitoring and analytics
+   - Test visitor-to-customer conversion funnel
+   - Prepare for initial user acquisition
 
 ---
-*Last Updated: After successfully implementing the full CI/CD pipeline.*
-*Next Update: After acquiring the first set of users.*
+*Last Updated: June 27, 2025 - After successful Azure Static Web Apps deployment*
+*Next Update: After custom domain configuration*
 
 ## Current System Capabilities
 
-### CLI Features
+### Marketing Site Features ✅
+- **Next.js 15 Application**: Modern React 19 with Tailwind CSS
+- **Azure Static Web Apps**: Globally distributed hosting
+- **Feature Flag System**: 14 environment variables for controlled rollout
+- **OAuth Integration**: Prepared for external app handoff
+- **Clean Dependencies**: Optimized package.json without conflicts
+- **Automated CI/CD**: GitHub Actions deployment on marketing changes
+
+### CLI Features ✅
 - **Transparent Wrapping**: Any MCP server works unchanged
 - **Event Monitoring**: Captures all JSON-RPC communication
 - **Flexible Configuration**: Environment variables and config files
@@ -63,7 +67,7 @@ With the core technical infrastructure, marketing site, and deployment automatio
 - **Offline Resilience**: Local logging when API unavailable
 - **Cross-Platform**: Windows, macOS (Intel/ARM), Linux support
 
-### API Features  
+### API Features ✅
 - **Event Ingestion**: Single event and batch endpoints
 - **Data Storage**: PostgreSQL with automatic schema migration
 - **Analytics**: Activity feed, statistics, cost tracking
@@ -71,78 +75,41 @@ With the core technical infrastructure, marketing site, and deployment automatio
 - **Security**: Bearer token authentication, Azure Key Vault integration
 - **Scalability**: Cloud-native design with auto-scaling capability
 
-### Infrastructure Features
-- **Complete Azure Stack**: App Service, PostgreSQL, Key Vault, Application Insights
+### Infrastructure Features ✅
+- **Complete Azure Stack**: App Service, PostgreSQL, Key Vault, Application Insights, Static Web Apps
 - **Infrastructure as Code**: Terraform for reproducible deployments
 - **CI/CD Pipeline**: GitHub Actions for automated builds and deployments
 - **Monitoring & Alerting**: Application Insights with custom metrics
 - **Backup & Recovery**: Automated PostgreSQL backups and disaster recovery procedures
 
-## Quality Metrics Achieved
-
-### Performance
-- **CLI Overhead**: <5ms latency impact verified
-- **API Response**: <100ms for event ingestion
-- **Database Performance**: Optimized indexes for time-series queries
-- **Memory Usage**: Efficient event batching and processing
-
-### Reliability
-- **Error Handling**: Comprehensive error recovery and logging
-- **Health Checks**: Multiple layers of system health monitoring
-- **Graceful Degradation**: System continues functioning during partial failures
-- **Data Integrity**: Event sourcing ensures no data loss
-
-### Security
-- **Authentication**: Bearer token and managed identity support
-- **Encryption**: TLS 1.3 for all communication
-- **Secret Management**: Azure Key Vault for sensitive configuration
-- **Access Control**: Proper Azure RBAC and resource isolation
-
-## Environment & Dependencies
-
-### Production Environment
-- **Azure Region**: East US
-- **App Service**: Linux container with .NET 9
-- **Database**: PostgreSQL 15 Flexible Server
-- **Monitoring**: Application Insights with custom telemetry
-- **Storage**: Azure Storage for logs and static assets
-
-### Development Environment
-- **CLI**: Go 1.24.4+ with standard library only
-- **API**: .NET 9 SDK with minimal APIs
-- **Infrastructure**: Terraform 1.0+ and Azure CLI
-- **Testing**: Local PostgreSQL or in-memory storage
-
-## Communication & Knowledge Transfer
-
-### Documentation Strategy Complete
-- **Memory Bank**: All context captured and maintained
-- **README Files**: Comprehensive guides for each component
-- **Demo Script**: Interactive examples for user onboarding
-- **Operations Guide**: Production monitoring and troubleshooting
-
-### Knowledge Areas Covered
-- **Architecture Decisions**: All patterns documented in systemPatterns.md
-- **Technology Choices**: Rationale captured in techContext.md
-- **Business Context**: Value proposition and user journey in productContext.md
-- **Implementation Status**: Complete feature inventory in progress.md
-
 ## Critical Operational Rules
 
-### Terraform Command Best Practices
+### Terraform State Management (CRITICAL LESSON LEARNED)
+**The #1 cause of infrastructure chaos is Terraform state inconsistency.**
+
+#### State Consistency Rules:
+1. **Always verify state sync before major changes**: `terraform refresh -var-file=config/dev.tfvars`
+2. **Use targeted applies for new resources**: `terraform apply -target=module.new_resource`
+3. **Never delete random_id.suffix without replacement plan**
+4. **Import existing resources when state is out of sync**: `terraform import -var-file=config/dev.tfvars`
+5. **Check Azure reality vs. state when plans show unexpected recreations**
+
+#### Terraform Command Best Practices:
 **ALWAYS specify `-var-file=config/dev.tfvars` (or appropriate environment) with ALL terraform commands.**
 
 ❌ **Never run**: `terraform plan`, `terraform apply`, `terraform import`  
 ✅ **Always run**: `terraform plan -var-file=config/dev.tfvars`, `terraform apply -var-file=config/dev.tfvars`
 
-**Rationale**: Ensures consistent configuration and prevents state/plan mismatches.
+### Marketing Site Deployment Rules
+1. **Dependency Management**: Keep package.json clean - remove unused dependencies immediately
+2. **Feature Flags**: Use environment variables for all configuration
+3. **Build Optimization**: Use `npm run build:azure` for static export
+4. **Path Filtering**: GitHub Actions only triggers on `marketing/**` changes
 
 ### Background Task Workflow
 When a user moves a long-running terminal command to the background, I will pause all further actions. I will output a message stating that I am waiting for the user to provide the terminal output or signal that the task is complete before I proceed.
 
-**Example message**: "The deployment is running in the background. I'll wait for you to provide the output once it's complete."
-
 ---
 
-*Last Updated: During production deployment - added terraform command best practices*
-*Next Update: After production deployment launch* 
+*Last Updated: June 27, 2025 - Added critical Terraform state management lessons*
+*Next Update: After custom domain configuration and production launch* 

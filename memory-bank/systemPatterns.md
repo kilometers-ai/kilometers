@@ -28,9 +28,111 @@
                     └─────────────────┘    └─────────────────┘
 ```
 
-### Core Architecture Principles
+## Infrastructure Patterns
 
-#### 1. Transparent Proxy Pattern
+### 1. Terraform State Consistency Pattern (CRITICAL)
+**The most important pattern for reliable infrastructure management.**
+
+```hcl
+# Problem: State drift causes infrastructure chaos
+# Solution: Consistent state management workflow
+
+# ALWAYS verify state before major changes
+terraform refresh -var-file=config/dev.tfvars
+
+# Use targeted applies for new resources
+terraform apply -target=module.new_resource -var-file=config/dev.tfvars
+
+# Import existing resources when state is out of sync
+terraform import -var-file=config/dev.tfvars azurerm_resource_group.main /subscriptions/.../resourceGroups/rg-name
+
+# Check for resource naming mismatches
+az resource list --resource-group rg-name --query "[].{Name:name, Type:type}"
+```
+
+**State Drift Detection Pattern:**
+```bash
+# Compare Terraform expectations vs Azure reality
+terraform plan -var-file=config/dev.tfvars | grep "will be created"
+# If seeing recreation of existing resources → STATE DRIFT DETECTED
+
+# Fix with refresh and targeted import
+terraform refresh -var-file=config/dev.tfvars
+terraform import -var-file=config/dev.tfvars resource.name resource_id
+```
+
+### 2. Azure Static Web Apps Deployment Pattern
+
+```yaml
+# GitHub Actions workflow for Azure Static Web Apps
+name: Azure Static Web Apps CI/CD
+on:
+  push:
+    branches: [main]
+    paths: ['marketing/**']  # Path-based triggering
+
+jobs:
+  build_and_deploy:
+    defaults:
+      run:
+        working-directory: ./marketing  # Scoped to marketing directory
+    
+    steps:
+      - name: Build Application
+        run: npm run build:azure  # Static export for Azure
+        env:
+          # All feature flags injected at build time
+          NEXT_PUBLIC_USE_EXTERNAL_APP: ${{ secrets.NEXT_PUBLIC_USE_EXTERNAL_APP }}
+          # ... 13 more environment variables
+      
+      - name: Deploy to Azure
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          app_location: "/marketing"
+          output_location: "out"
+```
+
+### 3. Clean Dependency Management Pattern
+
+```json
+// Problem: Conflicting peer dependencies break builds
+// Solution: Remove unused dependencies instead of workarounds
+
+// ❌ BAD: Using workarounds
+{
+  "dependencies": {
+    "date-fns": "4.1.0",
+    "react-day-picker": "8.10.1"  // Requires date-fns@^2.28.0 || ^3.0.0
+  }
+}
+// + .npmrc with legacy-peer-deps=true
+
+// ✅ GOOD: Clean dependency tree
+{
+  "dependencies": {
+    // Only packages actually being used
+    "lucide-react": "^0.454.0",  // For Calendar icon
+    "next": "15.2.4",
+    "react": "^19"
+    // date-fns and react-day-picker removed
+  }
+}
+```
+
+**Dependency Audit Pattern:**
+```bash
+# Before adding dependencies, verify usage
+grep -r "import.*packagename" src/
+grep -r "from.*packagename" src/
+
+# Remove if no matches found
+npm uninstall packagename
+```
+
+## Core Architecture Principles
+
+### 4. Transparent Proxy Pattern
 The CLI acts as a transparent proxy, intercepting and forwarding MCP communication without modification.
 
 ```go
@@ -51,7 +153,7 @@ func main() {
 }
 ```
 
-#### 2. Event Sourcing Pattern
+### 5. Event Sourcing Pattern
 All interactions are captured as immutable events, enabling replay and analysis.
 
 ```csharp
@@ -69,7 +171,7 @@ public record MpcEvent
 
 ## Marketing Site Architecture Patterns
 
-### 3. Split OAuth Authentication Pattern
+### 6. Split OAuth Authentication Pattern
 The marketing site initiates OAuth but the main application handles completion and token management.
 
 ```typescript
@@ -93,11 +195,11 @@ export function middleware(request: NextRequest) {
 }
 ```
 
-### 4. Feature Flag-Driven Architecture Pattern
+### 7. Feature Flag-Driven Architecture Pattern
 Environment variables control behavior across development and production environments.
 
 ```typescript
-// Feature Flag System
+// Feature Flag System: 14 Environment Variables
 const getFeatureFlags = (): FeatureFlags => {
   if (typeof window === "undefined") {
     // Server-side: use environment variables
@@ -106,14 +208,32 @@ const getFeatureFlags = (): FeatureFlags => {
       EXTERNAL_APP_URL: process.env.NEXT_PUBLIC_EXTERNAL_APP_URL || "https://app.kilometers.ai",
       ENABLE_GITHUB_OAUTH: process.env.NEXT_PUBLIC_ENABLE_GITHUB_OAUTH === "true",
       ENABLE_REAL_CONNECTION_CHECK: process.env.NEXT_PUBLIC_ENABLE_REAL_CONNECTION_CHECK === "true",
-      // ... 10 more feature flags
+      ENABLE_ANALYTICS: process.env.NEXT_PUBLIC_ENABLE_ANALYTICS !== "false",
+      SHOW_COOKIE_BANNER: process.env.NEXT_PUBLIC_SHOW_COOKIE_BANNER !== "false",
+      ENABLE_CONTACT_FORM: process.env.NEXT_PUBLIC_ENABLE_CONTACT_FORM === "true",
+      // ... 7 more connection verification flags
     }
   }
   return defaultFlags
 }
 ```
 
-### 5. Client-Side Suspense Pattern
+### 8. Static Export Optimization Pattern
+
+```javascript
+// next.config.mjs - Azure Static Web Apps Configuration
+export default {
+  output: "export",          // Static export for CDN hosting
+  trailingSlash: true,       // Consistent URL structure
+  skipTrailingSlashRedirect: true,
+  distDir: "out",            // Output directory for Azure
+  images: {
+    unoptimized: true        // Static hosting compatibility
+  }
+}
+```
+
+### 9. Client-Side Suspense Pattern
 Components using client-side hooks are wrapped in Suspense for proper SSR/hydration.
 
 ```typescript
@@ -132,6 +252,63 @@ function OnboardingClient() {
   const searchParams = useSearchParams() // Client-side hook
   // Component logic using searchParams
 }
+```
+
+## Deployment Patterns
+
+### 10. Targeted Infrastructure Updates Pattern
+For adding new infrastructure without disrupting existing systems.
+
+```bash
+# Pattern: Safe infrastructure expansion
+# 1. Add new Terraform module/resource
+# 2. Use targeted apply to avoid touching existing resources
+terraform apply -target=module.static_web_app -var-file=config/dev.tfvars
+
+# 3. Add related GitHub secrets
+terraform apply -target=github_actions_secret.azure_static_web_apps_api_token -var-file=config/dev.tfvars
+
+# 4. Verify state consistency
+terraform refresh -var-file=config/dev.tfvars
+terraform plan -var-file=config/dev.tfvars  # Should show minimal changes
+```
+
+### 11. Path-Based CI/CD Triggering Pattern
+
+```yaml
+# Selective deployment based on changed directories
+on:
+  push:
+    paths:
+      - 'marketing/**'    # Only trigger on marketing changes
+      - 'api/**'          # Separate trigger for API changes
+      - 'terraform/**'    # Separate trigger for infrastructure
+
+# Benefits:
+# - Faster builds (only relevant code)
+# - Reduced deployment conflicts
+# - Clear separation of concerns
+```
+
+### 12. Environment Variable Management Pattern
+
+```hcl
+# Terraform manages GitHub secrets for deployment
+locals {
+  marketing_environment_variables = {
+    "NEXT_PUBLIC_USE_EXTERNAL_APP" = "false"
+    "NEXT_PUBLIC_EXTERNAL_APP_URL" = "https://app.kilometers.ai"
+    # ... 12 more variables
+  }
+}
+
+resource "github_actions_secret" "marketing_env_vars" {
+  for_each        = local.marketing_environment_variables
+  repository      = data.github_repository.main.name
+  secret_name     = each.key
+  plaintext_value = each.value
+}
+```
 
 ## API Architecture Patterns
 
@@ -197,244 +374,71 @@ builder.Services.AddHostedService<EventProcessorService>();
 var app = builder.Build();
 ```
 
-## Data Architecture Patterns
+## Critical Operational Patterns
 
-### Event Store Schema Design
+### 13. Terraform State Recovery Pattern
 
-```sql
--- Primary event table (append-only)
-CREATE TABLE events (
-    id UUID PRIMARY KEY,
-    timestamp TIMESTAMPTZ NOT NULL,
-    customer_id UUID NOT NULL,
-    direction TEXT NOT NULL, -- 'request' | 'response'
-    mcp_method TEXT,
-    payload JSONB NOT NULL,
-    metadata JSONB,
-    
-    -- Optimized indexes
-    INDEX idx_customer_time (customer_id, timestamp DESC),
-    INDEX idx_method_risk (customer_id, mcp_method) WHERE risk_level > 7
-);
+```bash
+# When Terraform state is inconsistent with Azure reality:
 
--- Materialized views for analytics
-CREATE MATERIALIZED VIEW hourly_stats AS
-SELECT 
-    customer_id,
-    date_trunc('hour', timestamp) as hour,
-    mcp_method,
-    count(*) as request_count,
-    avg(duration_ms) as avg_duration,
-    sum(cost_estimate) as total_cost
-FROM events 
-WHERE direction = 'response'
-GROUP BY customer_id, hour, mcp_method;
+# Step 1: Identify the problem
+terraform plan -var-file=config/dev.tfvars
+# Symptoms: Plans to recreate existing resources
+
+# Step 2: Refresh state
+terraform refresh -var-file=config/dev.tfvars
+
+# Step 3: Import missing resources
+terraform import -var-file=config/dev.tfvars azurerm_resource_group.main /subscriptions/xyz/resourceGroups/rg-name
+
+# Step 4: Verify consistency
+terraform plan -var-file=config/dev.tfvars
+# Should show minimal/expected changes only
 ```
 
-### CQRS Pattern for Read/Write Separation
+### 14. Dependency Conflict Resolution Pattern
 
-```csharp
-// Command Side: Fast event ingestion
-public class EventIngestionService
-{
-    public async Task<Result> IngestEventAsync(EventDto dto)
-    {
-        var evt = MpcEvent.FromDto(dto);
-        await _eventStore.AppendAsync(evt);
-        
-        // Fire-and-forget background processing
-        _backgroundQueue.Enqueue(evt);
-        
-        return Result.Success();
-    }
-}
+```bash
+# Pattern: Clean Resolution over Workarounds
 
-// Query Side: Optimized read models
-public class DashboardQueryService  
-{
-    public async Task<ActivitySummary> GetActivitySummaryAsync(string customerId)
-    {
-        // Read from optimized views/aggregates
-        return await _readModel.GetSummaryAsync(customerId);
-    }
-}
+# ❌ BAD: Paper over the problem
+echo "legacy-peer-deps=true" > .npmrc
+
+# ✅ GOOD: Find and remove root cause
+# 1. Find conflicting packages
+npm ls --depth=0 | grep -E "(WARN|ERROR)"
+
+# 2. Check actual usage
+grep -r "import.*problem-package" src/
+grep -r "from.*problem-package" src/
+
+# 3. Remove if unused
+npm uninstall problem-package
+rm unused-component-using-package.tsx
+
+# 4. Verify clean build
+npm run build
 ```
 
-## CLI Architecture Patterns
+### 15. Infrastructure Consistency Validation Pattern
 
-### Process Wrapper Pattern
+```bash
+# Pattern: Verify infrastructure matches expectations
 
-```go
-// Transparent process wrapping
-type ProcessWrapper struct {
-    cmd    *exec.Cmd
-    stdin  io.WriteCloser
-    stdout io.ReadCloser
-    
-    events chan MpcEvent
-}
+# 1. List Azure resources
+az resource list --resource-group rg-kilometers-dev --query "[].{Name:name, Type:type}"
 
-func (w *ProcessWrapper) Start() error {
-    // Start wrapped process
-    if err := w.cmd.Start(); err != nil {
-        return err
-    }
-    
-    // Start monitoring goroutines
-    go w.monitorStdin()
-    go w.monitorStdout()
-    go w.processEvents()
-    
-    return nil
-}
-```
+# 2. List Terraform state
+terraform state list
 
-### Event Buffering Pattern
+# 3. Cross-reference and identify mismatches
+# Look for:
+# - Resources in Azure but not in state
+# - Resources in state but not in Azure  
+# - Name mismatches (different random suffixes)
 
-```go
-// Buffer events for batch transmission
-type EventBuffer struct {
-    events []MpcEvent
-    mutex  sync.Mutex
-    ticker *time.Ticker
-}
-
-func (b *EventBuffer) Add(event MpcEvent) {
-    b.mutex.Lock()
-    defer b.mutex.Unlock()
-    
-    b.events = append(b.events, event)
-    
-    // Flush if buffer is full
-    if len(b.events) >= batchSize {
-        go b.flush()
-    }
-}
-```
-
-## Security Patterns
-
-### API Authentication Pattern
-
-```csharp
-// JWT-based authentication with key rotation
-public class ApiKeyMiddleware
-{
-    public async Task InvokeAsync(HttpContext context, RequestDelegate next)
-    {
-        var apiKey = context.Request.Headers["X-API-Key"].FirstOrDefault();
-        
-        if (!await _keyValidator.ValidateAsync(apiKey))
-        {
-            context.Response.StatusCode = 401;
-            return;
-        }
-        
-        // Set customer context
-        context.Items["CustomerId"] = await _keyValidator.GetCustomerIdAsync(apiKey);
-        
-        await next(context);
-    }
-}
-```
-
-### Data Sanitization Pattern
-
-```csharp
-// Automatic PII detection and redaction
-public class DataSanitizer
-{
-    private static readonly Regex[] PiiPatterns = {
-        new Regex(@"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"), // Email
-        new Regex(@"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b"),          // Credit card
-        new Regex(@"\b(?:password|token|secret|key)\s*[:=]\s*\S+", RegexOptions.IgnoreCase)
-    };
-    
-    public JsonDocument Sanitize(JsonDocument input)
-    {
-        // Recursively scan and redact sensitive data
-        return SanitizeJsonElement(input.RootElement);
-    }
-}
-```
-
-## Performance Patterns
-
-### Async Processing Pattern
-
-```csharp
-// Background event processing
-public class EventProcessorService : BackgroundService
-{
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        await foreach (var events in _eventQueue.ReadAllAsync(stoppingToken))
-        {
-            // Process events in parallel batches
-            var tasks = events.Chunk(batchSize)
-                             .Select(batch => ProcessBatchAsync(batch))
-                             .ToArray();
-            
-            await Task.WhenAll(tasks);
-        }
-    }
-}
-```
-
-### Connection Pooling Pattern
-
-```csharp
-// Optimized database connections
-services.AddDbContext<KilometersDbContext>(options =>
-{
-    options.UseNpgsql(connectionString, npgsqlOptions =>
-    {
-        npgsqlOptions.CommandTimeout(30);
-        npgsqlOptions.EnableRetryOnFailure(3);
-    });
-}, ServiceLifetime.Singleton); // Singleton for connection pooling
-```
-
-## Deployment Patterns
-
-### Blue-Green Deployment Pattern
-
-```yaml
-# Azure App Service slot-based deployment
-- name: Deploy to Staging Slot
-  uses: azure/webapps-deploy@v2
-  with:
-    app-name: app-kilometers-api
-    slot-name: staging
-    package: ./publish
-
-- name: Smoke Test Staging
-  run: |
-    curl -f https://app-kilometers-api-staging.azurewebsites.net/health
-
-- name: Swap to Production
-  run: |
-    az webapp deployment slot swap \
-      --resource-group rg-kilometers \
-      --name app-kilometers-api \
-      --slot staging \
-      --target-slot production
-```
-
-### Infrastructure as Code Pattern
-
-```hcl
-# Terraform module pattern for reusable infrastructure
-module "kilometers_environment" {
-  source = "./modules/environment"
-  
-  environment_name = var.environment_name
-  location        = var.location
-  
-  # Environment-specific configurations
-  app_service_sku = var.environment_name == "prod" ? "P1v3" : "B1"
-  database_sku    = var.environment_name == "prod" ? "GP_Standard_D2s_v3" : "B_Standard_B1ms"
-}
+# 4. Reconcile differences with imports/refreshes
+terraform import -var-file=config/dev.tfvars resource.name azure_resource_id
 ```
 
 ## Component Interaction Patterns
