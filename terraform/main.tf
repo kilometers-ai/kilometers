@@ -364,5 +364,17 @@ resource "github_actions_secret" "kilometers_api_key" {
   plaintext_value = random_password.api_key.result
 }
 
+resource "github_actions_secret" "db_admin_password" {
+  repository      = data.github_repository.main.name
+  secret_name     = "DB_ADMIN_PASSWORD"
+  plaintext_value = var.db_admin_password
+}
+
+resource "github_actions_secret" "gh_token" {
+  repository      = data.github_repository.main.name
+  secret_name     = "GH_TOKEN"
+  plaintext_value = var.github_token
+}
+
 # Data source for current Azure config
 data "azurerm_client_config" "current" {}
