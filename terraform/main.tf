@@ -67,7 +67,9 @@ resource "azurerm_resource_group" "main" {
   #TODO: tfvars uses east us.
   # location = "North Central US"
   location = local.location
-  tags     = local.tags
+  tags = merge(local.tags, {
+    CICD_Validated = "true"
+  })
 }
 
 # Networking Module
