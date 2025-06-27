@@ -136,12 +136,12 @@ app.MapGet("/", () => new
     timestamp = DateTime.UtcNow
 });
 
-app.MapGet("/health", (IEventStore eventStore) => new
-{
-    status = "healthy",
-    timestamp = DateTime.UtcNow,
-    environment = app.Environment.EnvironmentName
-});
+// app.MapGet("/health", (IEventStore eventStore) => new
+// {
+//     status = "healthy",
+//     timestamp = DateTime.UtcNow,
+//     environment = app.Environment.EnvironmentName
+// });
 
 app.MapPost("/api/events", async (MpcEventDto eventDto, IEventStore eventStore, ILogger<Program> logger) =>
 {

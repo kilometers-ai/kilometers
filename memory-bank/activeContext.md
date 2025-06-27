@@ -2,90 +2,50 @@
 
 ## Current Work Focus
 
-### Project Status: Production Deployment Ready ✅
-**BREAKTHROUGH COMPLETE!** The entire core system is implemented and functional. We have successfully built a transparent MCP monitoring system that captures events end-to-end from CLI to API to database storage.
+### Project Status: Production Infrastructure Deployed ✅
+**BREAKTHROUGH COMPLETE!** After a lengthy and complex troubleshooting session, the complete Azure infrastructure for the `dev` environment has been successfully deployed and verified using Terraform. The API is confirmed to be healthy and responding to requests.
 
-### Current Priority: Documentation and Launch Preparation
-With the core functionality and infrastructure complete, we're now in the final phase - comprehensive documentation and demo creation for user onboarding.
+### Current Priority: Implement CI/CD Pipeline
+With the `dev` environment stable and the deployment process battle-tested, the next critical step is to automate the entire workflow. The priority is to build a robust CI/CD pipeline using GitHub Actions that can reliably build, test, and deploy both the infrastructure and the application.
 
 ## Recent Changes
 
 ### ✅ Completed Major Milestones
-- **Complete CLI Implementation**: Fully functional Go CLI wrapper with transparent MCP server monitoring
-- **Complete API Backend**: .NET 9 API with event ingestion, storage, analytics, and health checks
-- **Complete Infrastructure**: Production-ready Terraform configuration for Azure deployment
-- **Complete CI/CD Pipeline**: GitHub Actions workflow for automated deployment
-- **Complete Operations**: Comprehensive monitoring, backup, and disaster recovery procedures
-
-### ✅ Verified Working Features
-- **Transparent MCP Wrapping**: CLI successfully wraps any MCP server without interference
-- **Event Capture**: Both requests and responses captured with full JSON parsing
-- **API Communication**: CLI sends events to API with configurable batching and retry logic
-- **Data Storage**: Events stored with PostgreSQL integration and in-memory fallback
-- **Event Retrieval**: Activity feed and statistics endpoints fully functional
-- **Cost & Risk Analysis**: Basic cost estimation ($0.001/KB) and risk scoring implemented
-- **Health Monitoring**: Complete health check endpoints for production monitoring
-
-### ✅ Production Infrastructure Ready
-- **Azure Resources**: Complete Terraform definitions for all required Azure services
-- **Database Schema**: EF Core migrations ready for PostgreSQL deployment
-- **Security**: Key Vault integration, managed identity, and proper access policies
-- **Monitoring**: Application Insights integration for production telemetry
-- **Deployment**: Automated scripts for complete infrastructure and application deployment
+- **End-to-End Dev Environment Deployment**: Successfully deployed all Azure resources, including the App Service, PostgreSQL database, Key Vault, and networking, using Terraform.
+- **Resolved Complex State Issues**: Navigated and fixed multiple Terraform state conflicts, including `Resource already managed` and `RoleAssignmentExists` errors by using `terraform state rm` and `terraform import`.
+- **Fixed Critical Networking Bugs**: Diagnosed and resolved VNet delegation errors (`Microsoft.Web/serverFarms`) and disabled public network access on the App Service.
+- **Application Code Deployed**: Manually built, packaged, and deployed the .NET API application to the App Service, resolving a `404 Not Found` error on the health check endpoint.
+- **Deployment Verified**: Confirmed with `curl` that the `/health` endpoint returns a `200 OK` status, proving the infrastructure and application are working together correctly.
 
 ## Active Decisions & Architecture
 
-### Core Architecture Confirmed
-1. **Transparent Proxy Pattern**: CLI acts as invisible wrapper around MCP servers
-2. **Event Sourcing**: All interactions captured as immutable events for analysis
-3. **Hexagonal Architecture**: Clean separation of domain, infrastructure, and API concerns
-4. **Cloud-Native**: Azure-hosted with PostgreSQL, App Service, and managed identity
+### Deployment Strategy Confirmed
+1. **Terraform First**: The infrastructure is deployed and stabilized manually via Terraform from the local machine *before* CI/CD is implemented.
+2. **Manual Application Deployment (Bootstrap)**: For the initial setup, the application code is manually published and deployed using `dotnet publish` and `az webapp deployment source config-zip`. This will be replaced by the CI/CD pipeline.
+3. **RBAC Bootstrapping**: For resources with "chicken-and-egg" RBAC problems (like Key Vault), the initial role assignment is created manually via the Azure CLI (`az role assignment create`) and then imported into the Terraform state.
 
-### Technical Implementation Complete
-1. **CLI Event Handling**: Efficient stdin/stdout monitoring with JSON-RPC parsing
-2. **API Authentication**: Bearer token support with environment variable configuration  
-3. **Database Integration**: PostgreSQL with automatic migrations and connection resilience
-4. **Error Handling**: Graceful degradation when API unavailable, local logging fallback
-
-### Configuration & Deployment
-1. **CLI Configuration**: Environment variables and config file support
-2. **Cross-Platform Distribution**: Multi-platform builds via GitHub Actions
-3. **Infrastructure as Code**: Complete Terraform automation for Azure deployment
-4. **Production Monitoring**: Health checks, Application Insights, and logging
-
-## Next Steps (Documentation & Launch)
+## Next Steps (CI/CD)
 
 ### Immediate (This Session)
-1. **Memory Bank Updates** ✅ 
-   - Update all memory bank files to reflect current state
-   - Document production readiness
-
-2. **Comprehensive Documentation**
-   - CLI README with usage examples and configuration
-   - API README with development setup and endpoints
-   - Terraform README with deployment instructions
-   - Root project README with overview and quick start
-
-3. **Demo Script Creation**
-   - Interactive demo showcasing CLI features
-   - Mock MCP server for testing
-   - Event verification and API integration
+1. **Finalize Git Repository**
+   - Ensure all `.gitignore` files are correct and no sensitive data is tracked.
+   - Commit all changes from the successful deployment.
+2. **Develop CI/CD Plan**
+   - Outline the steps for building a GitHub Actions workflow.
+   - Define stages for build, test, infrastructure deploy (plan & apply), and application deploy.
 
 ### Short Term (Next Week)
-1. **Production Deployment**
-   - Execute infrastructure deployment via Terraform
-   - Deploy API to Azure App Service
-   - Verify end-to-end functionality in production
+1. **Implement GitHub Actions Workflow**
+   - Create the `.github/workflows/deploy-dev.yml` file.
+   - Configure secrets for Azure credentials.
+   - Build and test the pipeline for the `dev` environment.
+2. **Test End-to-End Automation**
+   - Push a small code change to trigger the workflow.
+   - Verify that the infrastructure and application deploy automatically without manual intervention.
 
-2. **User Testing & Feedback**
-   - Test with real MCP servers (GitHub, Slack)
-   - Gather initial user feedback
-   - Performance optimization based on usage
-
-3. **Launch Preparation**
-   - Marketing website creation
-   - Package manager distribution setup
-   - Initial customer outreach
+---
+*Last Updated: After successful manual deployment of the dev environment.*
+*Next Update: After the CI/CD pipeline is operational.*
 
 ## Current System Capabilities
 
@@ -161,7 +121,22 @@ With the core functionality and infrastructure complete, we're now in the final 
 - **Business Context**: Value proposition and user journey in productContext.md
 - **Implementation Status**: Complete feature inventory in progress.md
 
+## Critical Operational Rules
+
+### Terraform Command Best Practices
+**ALWAYS specify `-var-file=config/dev.tfvars` (or appropriate environment) with ALL terraform commands.**
+
+❌ **Never run**: `terraform plan`, `terraform apply`, `terraform import`  
+✅ **Always run**: `terraform plan -var-file=config/dev.tfvars`, `terraform apply -var-file=config/dev.tfvars`
+
+**Rationale**: Ensures consistent configuration and prevents state/plan mismatches.
+
+### Background Task Workflow
+When a user moves a long-running terminal command to the background, I will pause all further actions. I will output a message stating that I am waiting for the user to provide the terminal output or signal that the task is complete before I proceed.
+
+**Example message**: "The deployment is running in the background. I'll wait for you to provide the output once it's complete."
+
 ---
 
-*Last Updated: During comprehensive documentation update*
+*Last Updated: During production deployment - added terraform command best practices*
 *Next Update: After production deployment launch* 

@@ -1,12 +1,10 @@
-# Backend configuration for Terraform state
-# This stores the state in Azure Storage for team collaboration and security
-# NOTE: Backend storage account has been deleted - uncomment and recreate if needed
-
-# terraform {
-#   backend "azurerm" {
-#     resource_group_name  = "rg-terraform-state"
-#     storage_account_name = "tfkmbb1380"
-#     container_name       = "tfstate"
-#     key                  = "kilometers.tfstate"
-#   }
-# }
+terraform {
+  backend "azurerm" {
+    #TODO: should we use a different resource group?
+    #TODO: does this need to be environment specific?
+    resource_group_name  = "rg-kilometers-terraform"
+    storage_account_name = "stkilometerstfstate"
+    container_name       = "tfstate"
+    key                  = "kilometers.tfstate"
+  }
+}

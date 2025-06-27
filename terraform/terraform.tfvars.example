@@ -1,6 +1,76 @@
-# Example Terraform variables file
-# Copy this to terraform.tfvars and fill in your values
+# Azure Configuration
+environment = "dev"
+location    = "East US"
 
-# Database password for PostgreSQL administrator
-# Should be at least 12 characters with uppercase, lowercase, numbers and special characters
-db_password = "YourSecurePassword123!" 
+# Database Configuration
+db_admin_username = "pgadmin"
+db_admin_password = "YourSecurePassword123!"  # Change this!
+
+# Network Security
+allowed_ip_ranges = ["YOUR_IP_ADDRESS/32"]  # Add your IP for Key Vault access
+
+# GitHub Integration
+github_organization = "your-github-org"
+github_repository   = "kilometers"
+github_token        = "ghp_your_github_token"  # Requires repo and admin:org permissions
+
+# API Configuration
+api_version = "1.0.0"
+
+ terraform.tfvars.example - Cost Optimized Configuration
+# Copy this to terraform.tfvars and update with your values
+
+# Environment Configuration
+environment = "dev"  # dev, staging, or prod
+location    = "East US"  # Choose the cheapest region for your needs
+
+# Database Configuration
+db_admin_username = "pgadmin"
+db_admin_password = "YourSecurePassword123!"  # Change this!
+
+# Network Security
+allowed_ip_ranges = [
+  "YOUR_HOME_IP/32",     # Replace with your IP
+  "YOUR_OFFICE_IP/32"    # Add additional IPs as needed
+]
+
+# GitHub Integration
+github_organization = "your-github-username"  # or organization
+github_repository   = "kilometers"
+github_token        = "ghp_your_github_token_here"  # Needs repo and admin:org permissions
+
+# API Configuration
+api_version = "1.0.0"
+
+# ===== COST OPTIMIZATION SETTINGS =====
+
+# Budget Configuration (Adjust based on your budget)
+monthly_budget_amount = 50    # Alert when approaching $50/month
+daily_cost_threshold  = 5     # Alert if daily costs exceed $5
+
+# Alert Recipients
+alert_email_addresses = [
+  "your-email@example.com",
+  # Add additional emails for budget alerts
+]
+
+# Cost Tracking
+cost_center = "personal"  # or your department/project code
+
+# Cost Optimization Features
+enable_free_tier     = true   # Use free tiers where available (has limitations)
+enable_auto_shutdown = true   # Auto-shutdown resources during off-hours
+enable_cost_alerts   = true   # Enable all cost monitoring and alerts
+
+# Advanced Cost Settings (Optional)
+# timezone = "Eastern Standard Time"  # For auto-shutdown scheduling
+# auto_shutdown_time = "1900"         # 7 PM in 24-hour format
+# auto_startup_time = "0600"          # 6 AM in 24-hour format
+
+# ===== ENVIRONMENT-SPECIFIC OVERRIDES =====
+
+# Uncomment and modify for production
+# environment = "prod"
+# monthly_budget_amount = 200  # Higher budget for production
+# enable_free_tier = false     # Don't use free tier limitations in prod
+# enable_auto_shutdown = false # Keep production always running
