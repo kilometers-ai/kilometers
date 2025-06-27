@@ -29,7 +29,8 @@ jobs:
 
       - name: DEBUG - Echo Client ID
         run: |
-          echo "The Client ID is: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientId }}"
+          CLIENT_ID=$(echo '${{ fromJson(secrets.AZURE_CREDENTIALS).clientId }}')
+          echo "Value is: --->${CLIENT_ID}<---"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3

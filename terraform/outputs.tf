@@ -9,7 +9,7 @@ output "resource_group_location" {
   value       = azurerm_resource_group.main.location
 }
 
-# API Outputs
+# Api Outputs
 output "api_url" {
   description = "URL of the deployed API"
   value       = "https://${azurerm_linux_web_app.api.default_hostname}"
