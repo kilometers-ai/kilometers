@@ -1,3 +1,6 @@
+# Azure/Terraform Configuration for Kilometers.ai
+# CI/CD Pipeline Validation: This comment added to test manual secrets integration
+
 terraform {
   required_providers {
     azurerm = {

@@ -1,0 +1,65 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Azure/Terraform Integration Rules
+
+## 1. Never Mix Manual and Terraform-Managed Resources
+- **Rule**: If a resource is defined in Terraform code, NEVER create it manually with `az` commands
+- **Exception**: Bootstrap resources that Terraform cannot manage (like the initial service principal for CI/CD)
+- **Practice**: Always check if a resource exists in `main.tf` before running manual `az` commands
+
+## 2. Role Assignment Management Strategy
+- **Rule**: Role assignments should be managed EITHER manually OR by Terraform, never both
+- **Practice**: When debugging role issues, use `terraform import` to bring manual assignments under Terraform management rather than creating duplicates
+- **Documentation**: Always document which roles are managed manually vs. by Terraform
+
+## 3. Debugging State Issues
+- **Rule**: When Terraform state becomes inconsistent, prefer `terraform destroy` + `terraform apply` over complex import workflows
+- **Practice**: For development environments, rebuilding from scratch is often faster and more reliable than state surgery
+- **Exception**: Production environments require more careful state management
+
+## 4. Service Principal Management
+- **Rule**: The CI/CD service principal should be created once, manually, outside of Terraform
+- **Practice**: Use `data` sources to reference the existing service principal rather than trying to manage it with Terraform
+- **Rationale**: Avoids the "chicken-and-egg" problem of Terraform managing its own identity
+
+## 5. Permission Troubleshooting
+- **Rule**: When facing Azure permission errors, grant roles manually first to unblock, then add the role assignment to Terraform code
+- **Practice**: Use this sequence: 1) Manual `az role assignment create`, 2) `terraform import`, 3) Update Terraform code
+- **Documentation**: Always document the manual steps taken for future reference
+
+# Kilometers.ai Specific Rules
+
+## Terraform Backend State
+- **Rule**: The Terraform state storage account (`stkilometerstfstate`) and its role assignments are managed manually
+- **Practice**: Never attempt to manage the backend state resources with Terraform itself
+- **Commands**: Keep a record of the manual commands used to set up the backend
+
+## CI/CD Pipeline Dependencies
+- **Rule**: The pipeline's service principal requires three specific roles: `Contributor`, `Storage Account Contributor`, `User Access Administrator`
+- **Practice**: These can be granted manually initially, then maintained by Terraform for consistency
+- **Documentation**: Keep the exact `az role assignment create` commands in documentation for disaster recovery
+
+## Required Manual Commands for CI/CD Setup
+```bash
+# Service Principal Creation (run once)
+az ad sp create-for-rbac --name "kilometers-cicd-pipeline" --role "Contributor" --scopes "/subscriptions/SUBSCRIPTION_ID"
+
+# Additional Required Roles
+az role assignment create --role "Storage Account Contributor" --assignee-object-id "OBJECT_ID" --scope "/subscriptions/SUBSCRIPTION_ID/resourceGroups/rg-kilometers-terraform/providers/Microsoft.Storage/storageAccounts/stkilometerstfstate"
+az role assignment create --role "User Access Administrator" --assignee-object-id "OBJECT_ID" --scope "/subscriptions/SUBSCRIPTION_ID"
+```
+
+## Terraform Command Best Practices
+- **ALWAYS specify `-var-file=config/dev.tfvars` (or appropriate environment) with ALL terraform commands**
+- **ALWAYS specify `-var="arm_client_id=CLIENT_ID"` with terraform commands in this project**
+- Example: `terraform plan -var-file=config/dev.tfvars -var="arm_client_id=df6270a5-7c97-4c9a-ac19-a1da3d52223e"`
+
+## Lessons Learned from CI/CD Pipeline Setup
+- Manual role assignments created outside of Terraform will conflict with Terraform-managed role assignments
+- The `terraform destroy` command only destroys resources tracked in Terraform state, not manually created resources
+- When troubleshooting complex state issues, starting with a clean slate (`destroy` + `apply`) is often more reliable than attempting complex state surgery
+- Service principal permissions need to be granted at the appropriate scope (subscription level for cross-resource-group access)
+- GitHub Actions secret masking is very aggressive and will hide any output that resembles a secret, even when Base64 encoded
