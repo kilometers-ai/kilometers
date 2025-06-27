@@ -54,6 +54,7 @@ jobs:
             -var "db_admin_password=${{ secrets.DB_ADMIN_PASSWORD }}" \
             -var "github_organization=${{ github.repository_owner }}" \
             -var "github_token=${{ secrets.GH_TOKEN }}" \
+            -var "subscription_id=${{ secrets.ARM_SUBSCRIPTION_ID }}" \
             -out=tfplan -input=false -no-color
         working-directory: ${{ env.WORKING_DIR }}
         env:
