@@ -281,7 +281,7 @@ data "azurerm_storage_account" "terraform_state" {
 
 resource "azurerm_role_assignment" "github_actions_storage" {
   scope                = data.azurerm_storage_account.terraform_state.id
-  role_definition_name = "Storage Blob Data Contributor"
+  role_definition_name = "Storage Account Contributor"
   principal_id         = azuread_service_principal.github_actions.object_id
 }
 
