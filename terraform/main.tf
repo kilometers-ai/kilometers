@@ -273,6 +273,18 @@ resource "azurerm_role_assignment" "github_actions_keyvault" {
   principal_id         = azuread_service_principal.github_actions.object_id
 }
 
+# Grant GitHub Actions service principal access to the Terraform state backend
+data "azurerm_storage_account" "terraform_state" {
+  name                = "stkilometerstfstate"
+  resource_group_name = "rg-kilometers-terraform"
+}
+
+resource "azurerm_role_assignment" "github_actions_storage" {
+  scope                = data.azurerm_storage_account.terraform_state.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azuread_service_principal.github_actions.object_id
+}
+
 # Generate API Key
 resource "random_password" "api_key" {
   length  = 32
