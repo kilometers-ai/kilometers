@@ -85,15 +85,6 @@ resource "azurerm_key_vault_secret" "database_connection" {
   depends_on = [azurerm_role_assignment.terraform_admin]
 }
 
-# Store Service Bus connection string
-# resource "azurerm_key_vault_secret" "servicebus_connection" {
-#   name         = "servicebus-connection-string"
-#   value        = var.servicebus_connection_string
-#   key_vault_id = azurerm_key_vault.main.id
-
-#   depends_on = [azurerm_role_assignment.terraform_admin]
-# }
-
 # Additional secrets from variable map
 resource "azurerm_key_vault_secret" "additional_secrets" {
   for_each     = nonsensitive(var.additional_secrets)
