@@ -52,10 +52,16 @@ jobs:
         run: |
           terraform plan \
             -var "arm_client_id=${{ secrets.ARM_CLIENT_ID }}" \
-            -var "db_admin_password=${{ secrets.DB_ADMIN_PASSWORD }}" \
-            -var "github_organization=${{ github.repository_owner }}" \
-            -var "github_token=${{ secrets.GH_TOKEN }}" \
             -var "subscription_id=${{ secrets.ARM_SUBSCRIPTION_ID }}" \
+            -var "environment=dev" \
+            -var "location=Central US" \
+            -var "db_admin_username=pgadmin" \
+            -var "db_admin_password=${{ secrets.DB_ADMIN_PASSWORD }}" \
+            -var 'allowed_ip_ranges=["99.43.150.75/32", "0.0.0.0/0"]' \
+            -var "api_version=1.0.0" \
+            -var "github_organization=${{ github.repository_owner }}" \
+            -var "github_repository=kilometers" \
+            -var "github_token=${{ secrets.GH_TOKEN }}" \
             -out=tfplan -input=false -no-color
         working-directory: ${{ env.WORKING_DIR }}
         env:
