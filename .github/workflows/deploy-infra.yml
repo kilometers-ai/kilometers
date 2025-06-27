@@ -51,6 +51,7 @@ jobs:
         id: tf-plan
         run: |
           terraform plan \
+            -var "arm_client_id=${{ secrets.ARM_CLIENT_ID }}" \
             -var "db_admin_password=${{ secrets.DB_ADMIN_PASSWORD }}" \
             -var "github_organization=${{ github.repository_owner }}" \
             -var "github_token=${{ secrets.GH_TOKEN }}" \

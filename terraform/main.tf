@@ -245,30 +245,28 @@ module "cli_distribution" {
   tags                = local.tags
 }
 
-# GitHub Service Principal for CI/CD
-resource "azuread_application" "github_actions" {
-  display_name = "${local.project_name}-github-actions-${local.environment}"
+# --- GitHub Service Principal for CI/CD ---
+# Use a data source to look up the existing service principal used by the pipeline
+data "azuread_service_principal" "github_actions" {
+  client_id = var.arm_client_id
 }
 
-resource "azuread_service_principal" "github_actions" {
-  client_id = azuread_application.github_actions.client_id
+variable "arm_client_id" {
+  description = "The Client ID of the existing Service Principal for GitHub Actions."
+  type        = string
 }
 
-resource "azuread_service_principal_password" "github_actions" {
-  service_principal_id = azuread_service_principal.github_actions.id
-}
-
-# Assign roles to GitHub Actions service principal
+# Assign roles to the existing GitHub Actions service principal
 resource "azurerm_role_assignment" "github_actions_contributor" {
   scope                = azurerm_resource_group.main.id
   role_definition_name = "Contributor"
-  principal_id         = azuread_service_principal.github_actions.object_id
+  principal_id         = data.azuread_service_principal.github_actions.object_id
 }
 
 resource "azurerm_role_assignment" "github_actions_keyvault" {
   scope                = module.key_vault.key_vault_id
   role_definition_name = "Key Vault Secrets User"
-  principal_id         = azuread_service_principal.github_actions.object_id
+  principal_id         = data.azuread_service_principal.github_actions.object_id
 }
 
 # Grant GitHub Actions service principal access to the Terraform state backend
@@ -280,7 +278,7 @@ data "azurerm_storage_account" "terraform_state" {
 resource "azurerm_role_assignment" "github_actions_storage" {
   scope                = data.azurerm_storage_account.terraform_state.id
   role_definition_name = "Storage Account Contributor"
-  principal_id         = azuread_service_principal.github_actions.object_id
+  principal_id         = data.azuread_service_principal.github_actions.object_id
 }
 
 # Generate API Key
@@ -292,43 +290,6 @@ resource "random_password" "api_key" {
 # GitHub Repository Secrets Management
 data "github_repository" "main" {
   name = var.github_repository
-}
-
-# Store Azure credentials in GitHub
-resource "github_actions_secret" "azure_credentials" {
-  repository  = data.github_repository.main.name
-  secret_name = "AZURE_CREDENTIALS"
-  plaintext_value = jsonencode({
-    clientId       = azuread_application.github_actions.client_id
-    clientSecret   = azuread_service_principal_password.github_actions.value
-    subscriptionId = data.azurerm_client_config.current.subscription_id
-    tenantId       = data.azurerm_client_config.current.tenant_id
-  })
-}
-
-# Store individual Azure credentials (some actions prefer these)
-resource "github_actions_secret" "arm_client_id" {
-  repository      = data.github_repository.main.name
-  secret_name     = "ARM_CLIENT_ID"
-  plaintext_value = azuread_application.github_actions.client_id
-}
-
-resource "github_actions_secret" "arm_client_secret" {
-  repository      = data.github_repository.main.name
-  secret_name     = "ARM_CLIENT_SECRET"
-  plaintext_value = azuread_service_principal_password.github_actions.value
-}
-
-resource "github_actions_secret" "arm_subscription_id" {
-  repository      = data.github_repository.main.name
-  secret_name     = "ARM_SUBSCRIPTION_ID"
-  plaintext_value = data.azurerm_client_config.current.subscription_id
-}
-
-resource "github_actions_secret" "arm_tenant_id" {
-  repository      = data.github_repository.main.name
-  secret_name     = "ARM_TENANT_ID"
-  plaintext_value = data.azurerm_client_config.current.tenant_id
 }
 
 # Store infrastructure outputs in GitHub
