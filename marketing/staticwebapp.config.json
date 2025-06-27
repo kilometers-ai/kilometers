@@ -4,11 +4,6 @@
     {
       "route": "/api/*",
       "allowedRoles": ["anonymous"]
-    },
-    {
-      "route": "/*",
-      "serve": "/404.html",
-      "statusCode": 404
     }
   ],
   "navigationFallback": {
@@ -19,7 +14,10 @@
       "/*.js",
       "/*.{png,jpg,jpeg,gif,bmp}",
       "/*.ico",
-      "/*.svg"
+      "/*.svg",
+      "/*.woff2",
+      "/*.woff",
+      "/*.ttf"
     ]
   },
   "responseOverrides": {
