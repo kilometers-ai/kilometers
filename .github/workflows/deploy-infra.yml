@@ -1,81 +1,81 @@
-name: Deploy Infrastructure
+# name: Deploy Infrastructure
 
-on:
-  push:
-    paths:
-      - "terraform/**"
-    branches:
-      - main
-  workflow_dispatch:
+# on:
+#   push:
+#     paths:
+#       - "terraform/**"
+#     branches:
+#       - main
+#   workflow_dispatch:
 
-permissions:
-  contents: read
+# permissions:
+#   contents: read
 
-jobs:
-  deploy-infra:
-    name: Deploy Infrastructure (Terraform)
-    runs-on: ubuntu-latest
-    env:
-      WORKING_DIR: ./terraform
+# jobs:
+#   deploy-infra:
+#     name: Deploy Infrastructure (Terraform)
+#     runs-on: ubuntu-latest
+#     env:
+#       WORKING_DIR: ./terraform
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v4
 
-      - name: Azure Login
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+#       - name: Azure Login
+#         uses: azure/login@v1
+#         with:
+#           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.8.5
+#       - name: Setup Terraform
+#         uses: hashicorp/setup-terraform@v3
+#         with:
+#           terraform_version: 1.8.5
 
-      - name: Terraform Init
-        id: tf-init
-        run: terraform init -input=false
-        working-directory: ${{ env.WORKING_DIR }}
-        env:
-          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+#       - name: Terraform Init
+#         id: tf-init
+#         run: terraform init -input=false
+#         working-directory: ${{ env.WORKING_DIR }}
+#         env:
+#           ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+#           ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+#           ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+#           ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
 
-      - name: Terraform Validate
-        id: tf-validate
-        run: terraform validate -no-color
-        working-directory: ${{ env.WORKING_DIR }}
+#       - name: Terraform Validate
+#         id: tf-validate
+#         run: terraform validate -no-color
+#         working-directory: ${{ env.WORKING_DIR }}
 
-      - name: Terraform Plan
-        id: tf-plan
-        run: |
-          terraform plan \
-            -var "arm_client_id=${{ secrets.ARM_CLIENT_ID }}" \
-            -var "subscription_id=${{ secrets.ARM_SUBSCRIPTION_ID }}" \
-            -var "environment=dev" \
-            -var "location=Central US" \
-            -var "db_admin_username=pgadmin" \
-            -var "db_admin_password=${{ secrets.DB_ADMIN_PASSWORD }}" \
-            -var 'allowed_ip_ranges=["99.43.150.75/32", "0.0.0.0/0"]' \
-            -var "api_version=1.0.0" \
-            -var "github_organization=${{ github.repository_owner }}" \
-            -var "github_repository=kilometers" \
-            -var "github_token=${{ secrets.GH_TOKEN }}" \
-            -out=tfplan -input=false -no-color
-        working-directory: ${{ env.WORKING_DIR }}
-        env:
-          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+#       - name: Terraform Plan
+#         id: tf-plan
+#         run: |
+#           terraform plan \
+#             -var "arm_client_id=${{ secrets.ARM_CLIENT_ID }}" \
+#             -var "subscription_id=${{ secrets.ARM_SUBSCRIPTION_ID }}" \
+#             -var "environment=dev" \
+#             -var "location=Central US" \
+#             -var "db_admin_username=pgadmin" \
+#             -var "db_admin_password=${{ secrets.DB_ADMIN_PASSWORD }}" \
+#             -var 'allowed_ip_ranges=["99.43.150.75/32", "0.0.0.0/0"]' \
+#             -var "api_version=1.0.0" \
+#             -var "github_organization=${{ github.repository_owner }}" \
+#             -var "github_repository=kilometers" \
+#             -var "github_token=${{ secrets.GH_TOKEN }}" \
+#             -out=tfplan -input=false -no-color
+#         working-directory: ${{ env.WORKING_DIR }}
+#         env:
+#           ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+#           ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+#           ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+#           ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
 
-      - name: Terraform Apply
-        id: tf-apply
-        run: terraform apply -auto-approve -input=false tfplan
-        working-directory: ${{ env.WORKING_DIR }}
-        env:
-          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+#       - name: Terraform Apply
+#         id: tf-apply
+#         run: terraform apply -auto-approve -input=false tfplan
+#         working-directory: ${{ env.WORKING_DIR }}
+#         env:
+#           ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+#           ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+#           ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+#           ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
