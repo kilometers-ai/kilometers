@@ -63,9 +63,7 @@ locals {
 }
 
 resource "azurerm_resource_group" "main" {
-  name = "rg-${local.project_name}-${local.environment}"
-  #TODO: tfvars uses east us.
-  # location = "North Central US"
+  name     = "rg-${local.project_name}-${local.environment}"
   location = local.location
   tags = merge(local.tags, {
     CICD_Validated = "true"
