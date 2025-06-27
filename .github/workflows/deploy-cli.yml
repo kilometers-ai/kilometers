@@ -1,0 +1,69 @@
+name: Deploy CLI
+
+on:
+  push:
+    paths:
+      - "cli/**"
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write # Needed to create releases
+
+jobs:
+  build:
+    name: Build CLI for ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, windows, darwin]
+        goarch: [amd64, arm64]
+        exclude:
+          - goos: windows
+            goarch: arm64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          go build -v -o "dist/km-${{ matrix.goos }}-${{ matrix.goarch }}" ./cli
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-build-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          pattern: cli-build-*
+          merge-multiple: true
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: cli-v${{ github.run_number }}
+          name: CLI Release v${{ github.run_number }}
+          body: "Automated release of the Kilometers CLI."
+          draft: false
+          prerelease: true
+          files: artifacts/*

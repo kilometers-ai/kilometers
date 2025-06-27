@@ -1,0 +1,53 @@
+name: Deploy Infrastructure
+
+on:
+  push:
+    paths:
+      - "terraform/**"
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-infra:
+    name: Deploy Infrastructure (Terraform)
+    runs-on: ubuntu-latest
+    env:
+      WORKING_DIR: ./terraform
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.5
+
+      - name: Terraform Init
+        id: tf-init
+        run: terraform init -input=false
+        working-directory: ${{ env.WORKING_DIR }}
+
+      - name: Terraform Validate
+        id: tf-validate
+        run: terraform validate -no-color
+        working-directory: ${{ env.WORKING_DIR }}
+
+      - name: Terraform Plan
+        id: tf-plan
+        run: terraform plan -var-file=config/dev.tfvars -out=tfplan -input=false -no-color
+        working-directory: ${{ env.WORKING_DIR }}
+
+      - name: Terraform Apply
+        id: tf-apply
+        run: terraform apply -auto-approve -input=false tfplan
+        working-directory: ${{ env.WORKING_DIR }}

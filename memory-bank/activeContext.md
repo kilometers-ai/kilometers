@@ -2,50 +2,41 @@
 
 ## Current Work Focus
 
-### Project Status: Production Infrastructure Deployed ✅
-**BREAKTHROUGH COMPLETE!** After a lengthy and complex troubleshooting session, the complete Azure infrastructure for the `dev` environment has been successfully deployed and verified using Terraform. The API is confirmed to be healthy and responding to requests.
+### Project Status: CI/CD Implemented ✅
+**BREAKTHROUGH COMPLETE!** A full suite of component-based CI/CD pipelines has been implemented using GitHub Actions. The project now has separate, automated workflows for the API, the infrastructure (Terraform), and the CLI tool. This automates the entire deployment process, triggered by pushes to the `main` branch.
 
-### Current Priority: Implement CI/CD Pipeline
-With the `dev` environment stable and the deployment process battle-tested, the next critical step is to automate the entire workflow. The priority is to build a robust CI/CD pipeline using GitHub Actions that can reliably build, test, and deploy both the infrastructure and the application.
+### Current Priority: Market Validation & Customer Acquisition
+With the core technical infrastructure and deployment automation complete, the focus now shifts to go-to-market activities. The next critical step is to execute the launch plan, attract the first users, and validate the product's value proposition.
 
 ## Recent Changes
 
 ### ✅ Completed Major Milestones
-- **End-to-End Dev Environment Deployment**: Successfully deployed all Azure resources, including the App Service, PostgreSQL database, Key Vault, and networking, using Terraform.
-- **Resolved Complex State Issues**: Navigated and fixed multiple Terraform state conflicts, including `Resource already managed` and `RoleAssignmentExists` errors by using `terraform state rm` and `terraform import`.
-- **Fixed Critical Networking Bugs**: Diagnosed and resolved VNet delegation errors (`Microsoft.Web/serverFarms`) and disabled public network access on the App Service.
-- **Application Code Deployed**: Manually built, packaged, and deployed the .NET API application to the App Service, resolving a `404 Not Found` error on the health check endpoint.
-- **Deployment Verified**: Confirmed with `curl` that the `/health` endpoint returns a `200 OK` status, proving the infrastructure and application are working together correctly.
+- **Implemented Component-Based CI/CD**: Created three separate GitHub Actions workflows for the API, infrastructure, and CLI.
+- **Automated API Deployment**: The `.github/workflows/deploy-api.yml` workflow automatically builds and deploys the .NET API to the Azure App Service on changes to the `api/` directory.
+- **Automated Infrastructure Deployment**: The `.github/workflows/deploy-infra.yml` workflow automatically runs `terraform plan` and `apply` on changes to the `terraform/` directory.
+- **Automated CLI Release**: The `.github/workflows/deploy-cli.yml` workflow automatically builds the Go CLI for multiple platforms and creates a GitHub Release with the binaries on changes to the `cli/` directory.
+- **Removed Manual Friction**: The development deployment process is now fully automated, removing the need for manual approvals.
 
-## Active Decisions & Architecture
-
-### Deployment Strategy Confirmed
-1. **Terraform First**: The infrastructure is deployed and stabilized manually via Terraform from the local machine *before* CI/CD is implemented.
-2. **Manual Application Deployment (Bootstrap)**: For the initial setup, the application code is manually published and deployed using `dotnet publish` and `az webapp deployment source config-zip`. This will be replaced by the CI/CD pipeline.
-3. **RBAC Bootstrapping**: For resources with "chicken-and-egg" RBAC problems (like Key Vault), the initial role assignment is created manually via the Azure CLI (`az role assignment create`) and then imported into the Terraform state.
-
-## Next Steps (CI/CD)
+## Next Steps (Go-to-Market)
 
 ### Immediate (This Session)
-1. **Finalize Git Repository**
-   - Ensure all `.gitignore` files are correct and no sensitive data is tracked.
-   - Commit all changes from the successful deployment.
-2. **Develop CI/CD Plan**
-   - Outline the steps for building a GitHub Actions workflow.
-   - Define stages for build, test, infrastructure deploy (plan & apply), and application deploy.
+1.  **Finalize Git Repository**
+   - Push all new workflow files to the `main` branch to activate the pipelines.
+2.  **Update Documentation**
+   - Ensure `README.md` files reflect the new automated deployment process.
+   - Update `progress.md` to mark CI/CD as complete.
 
 ### Short Term (Next Week)
-1. **Implement GitHub Actions Workflow**
-   - Create the `.github/workflows/deploy-dev.yml` file.
-   - Configure secrets for Azure credentials.
-   - Build and test the pipeline for the `dev` environment.
-2. **Test End-to-End Automation**
-   - Push a small code change to trigger the workflow.
-   - Verify that the infrastructure and application deploy automatically without manual intervention.
+1.  **Execute Launch Plan**
+   - Announce the availability of Kilometers.ai on relevant channels.
+   - Begin outreach to initial target users.
+2.  **Monitor Initial Usage**
+   - Use the Kilometers.ai dashboard and Azure Application Insights to monitor system health and user activity.
+   - Gather feedback from the first cohort of users.
 
 ---
-*Last Updated: After successful manual deployment of the dev environment.*
-*Next Update: After the CI/CD pipeline is operational.*
+*Last Updated: After successfully implementing the full CI/CD pipeline.*
+*Next Update: After acquiring the first set of users.*
 
 ## Current System Capabilities
 
