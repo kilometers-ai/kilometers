@@ -110,13 +110,13 @@ output "cli_releases_url" {
 
 # GitHub Service Principal Outputs
 output "github_actions_client_id" {
-  description = "Client ID for GitHub Actions service principal"
-  value       = azuread_application.github_actions.client_id
+  description = "The Client ID of the GitHub Actions service principal."
+  value       = data.azuread_service_principal.github_actions.client_id
 }
 
 output "github_actions_object_id" {
-  description = "Object ID for GitHub Actions service principal"
-  value       = azuread_service_principal.github_actions.object_id
+  description = "The Object ID of the GitHub Actions service principal."
+  value       = data.azuread_service_principal.github_actions.object_id
 }
 
 # API Key Output (for initial setup)
