@@ -30,7 +30,8 @@ jobs:
       - name: DEBUG - Echo Client ID
         run: |
           CLIENT_ID=$(echo '${{ fromJson(secrets.AZURE_CREDENTIALS).clientId }}')
-          echo "Value is: --->${CLIENT_ID}<---"
+          echo "Base64 Encoded Client ID:"
+          echo "${CLIENT_ID}" | base64
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
