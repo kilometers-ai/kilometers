@@ -154,6 +154,9 @@ jobs:
     name: Deploy to CDN
     needs: [build, release]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Checkout code
@@ -173,10 +176,15 @@ jobs:
         id: storage
         run: |
           STORAGE_ACCOUNT=$(az storage account list \
-            --resource-group rg-kilometers-prod \
+            --resource-group rg-kilometers-dev \
             --query "[?starts_with(name, 'stkmcli')].name" \
             --output tsv)
           echo "account=${STORAGE_ACCOUNT}" >> $GITHUB_OUTPUT
+        env:
+          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
 
       - name: Upload binaries to Azure Storage
         run: |
@@ -221,12 +229,17 @@ jobs:
               --content-type "text/plain" \
               --overwrite
           fi
+        env:
+          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
 
       - name: Purge CDN cache
         run: |
-          CDN_PROFILE="cdnp-kilometers-cli-prod"
-          CDN_ENDPOINT="cdne-kilometers-get-prod"
-          RESOURCE_GROUP="rg-kilometers-prod"
+          CDN_PROFILE="cdnp-kilometers-cli-dev"
+          CDN_ENDPOINT="cdne-kilometers-get-dev"
+          RESOURCE_GROUP="rg-kilometers-dev"
 
           # Purge specific paths
           az cdn endpoint purge \
@@ -234,6 +247,11 @@ jobs:
             --profile-name "${CDN_PROFILE}" \
             --name "${CDN_ENDPOINT}" \
             --content-paths "/releases/latest/*" "/install/*"
+        env:
+          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
 
       - name: Test installation
         run: |
