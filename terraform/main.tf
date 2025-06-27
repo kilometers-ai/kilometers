@@ -283,6 +283,13 @@ resource "azurerm_role_assignment" "github_actions_storage" {
   principal_id         = data.azuread_service_principal.github_actions.object_id
 }
 
+# Grant GitHub Actions service principal access to CLI distribution storage account
+resource "azurerm_role_assignment" "github_actions_cli_storage_contributor" {
+  scope                = module.cli_distribution.storage_account_id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = data.azuread_service_principal.github_actions.object_id
+}
+
 # Generate API Key
 resource "random_password" "api_key" {
   length  = 32

@@ -2,6 +2,10 @@ output "storage_account_name" {
   value = azurerm_storage_account.cli_distribution.name
 }
 
+output "storage_account_id" {
+  value = azurerm_storage_account.cli_distribution.id
+}
+
 output "storage_primary_web_endpoint" {
   value = azurerm_storage_account.cli_distribution.primary_web_endpoint
 }
