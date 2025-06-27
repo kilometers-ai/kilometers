@@ -56,7 +56,6 @@ resource "azurerm_container_app" "api" {
     identity = azurerm_user_assigned_identity.container_app.id
   }
 
-  # 🌐 PUBLIC INGRESS CONFIGURATION
   ingress {
     allow_insecure_connections = false # Force HTTPS
     external_enabled           = true  # Enable external access
