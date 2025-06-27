@@ -22,7 +22,6 @@ terraform {
 #TODO: Add storage account for terraform state?
 
 # Configure the Microsoft Azure Provider
-#TODO: Try to create a separate subscription (should this be done for each environment?)
 provider "azurerm" {
   subscription_id = var.subscription_id
   features {
