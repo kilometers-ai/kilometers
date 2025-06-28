@@ -30,7 +30,270 @@
 
 ## Infrastructure Patterns
 
-### 1. Terraform State Consistency Pattern (CRITICAL)
+### 1. Azure CDN Complex Deployment Pattern (ADVANCED) ⭐ NEW
+**The most sophisticated infrastructure deployment pattern for handling Azure provider limitations.**
+
+**Problem**: Azure CDN origin changes force complete resource replacement, creating complex dependency deadlocks with DNS and custom domains.
+
+**Challenge Scenario**:
+```bash
+# This simple change forces complete resource replacement
+resource "azurerm_cdn_endpoint" "get" {
+  origin {
+-   host_name = azurerm_storage_account.cli.primary_blob_host
++   host_name = azurerm_storage_account.cli.primary_web_host
+  }
+}
+
+# Results in forced replacement chain:
+# 1. azurerm_cdn_endpoint.get must be replaced
+# 2. azurerm_cdn_endpoint_custom_domain.get must be replaced  
+# 3. DNS CNAME validation lock prevents deletion
+```
+
+**Advanced Solution Pattern**:
+```bash
+# Multi-stage deployment to break dependency deadlock
+
+# STAGE 1: Remove DNS lock
+terraform apply -target=-azurerm_dns_cname_record.get
+# Temporarily removes CNAME record, breaking Azure's validation lock
+
+# STAGE 2: Replace CDN infrastructure
+terraform apply 
+# Now Azure can delete old endpoint and create new one
+
+# STAGE 3: Restore DNS configuration
+terraform apply
+# Restores CNAME record pointing to new endpoint
+
+# STAGE 4: Verify and optimize
+az cdn endpoint purge --content-paths "/*"
+# Clear CDN cache to ensure immediate availability
+```
+
+**Critical Implementation Details**:
+```terraform
+# Comment/uncomment pattern for stage management
+# resource "azurerm_dns_cname_record" "get" {
+#   name                = "get"
+#   zone_name           = azurerm_dns_zone.main.name
+#   resource_group_name = azurerm_resource_group.main.name
+#   ttl                 = 300
+#   record              = module.cli_distribution.cdn_endpoint_hostname
+# }
+
+# Use this for STAGE 1, then uncomment for STAGE 3
+```
+
+**When to Use This Pattern**:
+- Azure CDN endpoint origin changes
+- Any forced replacement with complex dependencies
+- DNS validation locks preventing resource deletion
+- Custom domain SSL certificate dependencies
+
+### 2. Hybrid CLI Distribution Pattern (INDUSTRY STANDARD) ⭐ NEW
+**Professional CLI distribution architecture matching Docker, Kubernetes, AWS CLI standards.**
+
+**Architecture**:
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   User Client   │    │  Branded CDN    │    │ GitHub Releases │
+│                 │    │ get.product.com │    │  (Binaries)     │
+└─────────┬───────┘    └─────────┬───────┘    └─────────┬───────┘
+          │                      │                      │
+          │ curl install.sh      │                      │
+          │◄─────────────────────┤                      │
+          │                      │                      │
+          │ download binary      │                      │
+          │◄─────────────────────┼──────────────────────┤
+          │                      │                      │
+```
+
+**Install Script Pattern**:
+```bash
+#!/bin/sh
+# Professional install script template
+
+set -e
+
+# Configuration
+BINARY_NAME="km"
+GITHUB_REPO="org/repo"
+INSTALL_DIR="/usr/local/bin"
+
+# Professional UX
+info() { printf "\033[0;32m[INFO]\033[0m %s\n" "$1"; }
+warn() { printf "\033[1;33m[WARN]\033[0m %s\n" "$1"; }
+error() { printf "\033[0;31m[ERROR]\033[0m %s\n" "$1" >&2; exit 1; }
+success() { printf "\033[0;34m[SUCCESS]\033[0m %s\n" "$1"; }
+
+# Automatic platform detection
+detect_platform() {
+    OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+    ARCH=$(uname -m)
+    
+    case $OS in
+        linux*)
+            case $ARCH in
+                x86_64) PLATFORM="linux-amd64" ;;
+                aarch64|arm64) PLATFORM="linux-arm64" ;;
+                *) error "Unsupported architecture: $ARCH" ;;
+            esac
+            ;;
+        darwin*)
+            case $ARCH in
+                x86_64) PLATFORM="darwin-amd64" ;;
+                arm64) PLATFORM="darwin-arm64" ;;
+                *) error "Unsupported architecture: $ARCH" ;;
+            esac
+            ;;
+        mingw*|cygwin*|msys*)
+            PLATFORM="windows-amd64.exe"
+            INSTALL_DIR="$HOME/bin"
+            ;;
+        *)
+            error "Unsupported operating system: $OS"
+            ;;
+    esac
+}
+
+# Robust download with fallback
+download_binary() {
+    DOWNLOAD_URL="https://github.com/$GITHUB_REPO/releases/latest/download/$BINARY_NAME-$PLATFORM"
+    
+    info "Downloading $BINARY_NAME for $PLATFORM..."
+    
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "$DOWNLOAD_URL" -o "$BINARY_PATH"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q "$DOWNLOAD_URL" -O "$BINARY_PATH"
+    else
+        error "Neither curl nor wget found. Please install one of them."
+    fi
+    
+    # Verify download
+    if [ ! -f "$BINARY_PATH" ]; then
+        error "Download failed: binary not found"
+    fi
+    
+    # Make executable
+    chmod +x "$BINARY_PATH"
+}
+
+# Professional installation flow
+main() {
+    info "Installing $BINARY_NAME..."
+    
+    detect_platform
+    create_install_dir
+    download_binary
+    verify_installation
+    
+    success "✅ $BINARY_NAME installed successfully!"
+    info "🚀 Get started: $BINARY_NAME --help"
+    info "📚 Documentation: https://product.com/docs"
+}
+
+main "$@"
+```
+
+**GitHub Release Automation**:
+```yaml
+name: Release CLI
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+          - os: ubuntu-latest  
+            goos: linux
+            goarch: arm64
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+          - os: macos-latest
+            goos: darwin  
+            goarch: arm64
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
+      
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          BINARY_NAME="km"
+          if [ "$GOOS" = "windows" ]; then
+            BINARY_NAME="$BINARY_NAME.exe"
+          fi
+          go build -o "$BINARY_NAME-$GOOS-$GOARCH" ./cmd/km
+      
+      - name: Upload to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: km-*
+          generate_release_notes: true
+```
+
+**Infrastructure Configuration**:
+```terraform
+# CDN serves only install script (simple, reliable)
+resource "azurerm_cdn_endpoint" "get" {
+  name                = "cdne-${var.product}-get-${var.environment}"
+  profile_name        = azurerm_cdn_profile.main.name
+  resource_group_name = var.resource_group_name
+  location            = "global"
+  origin_host_header  = azurerm_storage_account.main.primary_web_host
+
+  origin {
+    name      = "storage-web"
+    host_name = azurerm_storage_account.main.primary_web_host
+  }
+
+  # Simple caching - just for install script
+  delivery_rule {
+    name  = "CacheInstallScript"
+    order = 1
+
+    request_uri_condition {
+      operator     = "Equal"
+      match_values = ["/install.sh"]
+    }
+
+    cache_expiration_action {
+      behavior = "Override"
+      duration = "1.00:00:00"  # 1 hour cache
+    }
+  }
+
+  tags = var.tags
+}
+```
+
+**Benefits of Hybrid Pattern**:
+- **Reliability**: GitHub Releases has 99.99% uptime vs custom infrastructure
+- **Performance**: GitHub's global CDN optimized for binary distribution  
+- **Cost**: Eliminates expensive binary storage and complex caching
+- **Maintenance**: Zero operational overhead for binary distribution
+- **Professional**: Installation UX matches industry leaders
+- **Fallback**: Multiple distribution channels (CDN → GitHub → direct)
+
+### 3. Terraform State Consistency Pattern (CRITICAL)
 **The most important pattern for reliable infrastructure management.**
 
 ```hcl
@@ -61,7 +324,7 @@ terraform refresh -var-file=config/dev.tfvars
 terraform import -var-file=config/dev.tfvars resource.name resource_id
 ```
 
-### 2. Azure Static Web Apps DNS Configuration Pattern (PRODUCTION PROVEN)
+### 4. Azure Static Web Apps DNS Configuration Pattern (PRODUCTION PROVEN)
 
 **Critical Discovery**: Azure Static Web Apps requires different validation methods for different domain types.
 
@@ -114,7 +377,7 @@ resource "azurerm_dns_cname_record" "www" {
 }
 ```
 
-### 3. Orphaned Resource Cleanup Pattern (COST OPTIMIZATION)
+### 5. Orphaned Resource Cleanup Pattern (COST OPTIMIZATION)
 
 **Problem**: When `random_id.suffix` changes, resources with old suffix become orphaned in Azure but not tracked in Terraform state.
 
@@ -150,7 +413,7 @@ ORPHANED_RESOURCES=$(az resource list \
     --output json)
 ```
 
-### 4. Azure Static Web Apps Deployment Pattern
+### 6. Azure Static Web Apps Deployment Pattern
 
 ```yaml
 # GitHub Actions workflow for Azure Static Web Apps
@@ -182,7 +445,7 @@ jobs:
           output_location: "out"
 ```
 
-### 5. Clean Dependency Management Pattern
+### 7. Clean Dependency Management Pattern
 
 ```json
 // Problem: Conflicting peer dependencies break builds
@@ -221,7 +484,7 @@ npm uninstall packagename
 
 ## Core Architecture Principles
 
-### 6. Transparent Proxy Pattern
+### 8. Transparent Proxy Pattern
 The CLI acts as a transparent proxy, intercepting and forwarding MCP communication without modification.
 
 ```go
@@ -242,7 +505,7 @@ func main() {
 }
 ```
 
-### 7. Event Sourcing Pattern
+### 9. Event Sourcing Pattern
 All interactions are captured as immutable events, enabling replay and analysis.
 
 ```csharp
@@ -260,7 +523,7 @@ public record MpcEvent
 
 ## Marketing Site Architecture Patterns
 
-### 8. Split OAuth Authentication Pattern
+### 10. Split OAuth Authentication Pattern
 The marketing site initiates OAuth but the main application handles completion and token management.
 
 ```typescript
@@ -284,7 +547,7 @@ export function middleware(request: NextRequest) {
 }
 ```
 
-### 9. Feature Flag-Driven Architecture Pattern
+### 11. Feature Flag-Driven Architecture Pattern
 Environment variables control behavior across development and production environments.
 
 ```bash
@@ -305,7 +568,7 @@ NEXT_PUBLIC_CONNECTION_CHECK_METHOD=polling
 
 ## Production Deployment Patterns
 
-### 10. Resource Suffix Management Pattern
+### 12. Resource Suffix Management Pattern
 Use `random_id.suffix` for unique resource naming while managing lifecycle properly.
 
 ```terraform
@@ -323,7 +586,7 @@ locals {
 # Use targeted applies to manage deployment safely
 ```
 
-### 11. Infrastructure Health Verification Pattern
+### 13. Infrastructure Health Verification Pattern
 Verify infrastructure deployment success with automated checks.
 
 ```bash
