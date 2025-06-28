@@ -36,6 +36,13 @@ resource "azurerm_storage_account_static_website" "cli_distribution" {
   error_404_document = "404.html"
 }
 
+# Container for releases
+resource "azurerm_storage_container" "releases" {
+  name                  = "releases"
+  storage_account_id    = azurerm_storage_account.cli_distribution.id
+  container_access_type = "blob" # Public read access for binaries
+}
+
 # Container for install scripts
 resource "azurerm_storage_container" "install" {
   name                  = "install"
@@ -58,18 +65,32 @@ resource "azurerm_cdn_endpoint" "get" {
   profile_name        = azurerm_cdn_profile.cli_distribution.name
   resource_group_name = var.resource_group_name
   location            = "global"
-  origin_host_header  = azurerm_storage_account.cli_distribution.primary_web_host
 
   origin {
     name      = "storage"
     host_name = azurerm_storage_account.cli_distribution.primary_web_host
   }
 
-  # Caching rules for efficient distribution - simplified for install script only
+  # Caching rules for efficient distribution
   global_delivery_rule {
     cache_expiration_action {
       behavior = "Override"
       duration = "00:10:00" # 10 minutes cache for install scripts
+    }
+  }
+
+  delivery_rule {
+    name  = "CacheBinaries"
+    order = 1
+
+    url_path_condition {
+      operator     = "BeginsWith"
+      match_values = ["/releases/"]
+    }
+
+    cache_expiration_action {
+      behavior = "Override"
+      duration = "1.00:00:00" # 24 hours cache for binaries (fixed format: d.hh:mm:ss)
     }
   }
 
@@ -82,10 +103,8 @@ resource "azurerm_cdn_endpoint_custom_domain" "get_kilometers_ai" {
   cdn_endpoint_id = azurerm_cdn_endpoint.get.id
   host_name       = "get.kilometers.ai"
 
-  # Temporarily disable HTTPS due to 8-hour Azure CDN cooldown
-  # Will re-enable after cooldown period expires
-  # cdn_managed_https {
-  #   certificate_type = "Dedicated"
-  #   protocol_type    = "ServerNameIndication"
-  # }
+  cdn_managed_https {
+    certificate_type = "Dedicated"
+    protocol_type    = "ServerNameIndication"
+  }
 }

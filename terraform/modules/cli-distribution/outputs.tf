@@ -19,13 +19,10 @@ output "storage_primary_blob_endpoint" {
 }
 
 output "cdn_endpoint_hostname" {
-  value = azurerm_cdn_endpoint.get.fqdn
+  description = "The hostname of the CDN endpoint"
+  value       = azurerm_cdn_endpoint.get.fqdn
 }
 
 output "cdn_custom_domain_name" {
   value = azurerm_cdn_endpoint_custom_domain.get_kilometers_ai.host_name
-}
-
-output "releases_container_url" {
-  value = "${azurerm_storage_account.cli_distribution.primary_blob_endpoint}${azurerm_storage_container.releases.name}"
 }

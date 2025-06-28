@@ -103,9 +103,9 @@ output "cli_cdn_endpoint" {
   value       = module.cli_distribution.cdn_endpoint_hostname
 }
 
-output "cli_releases_url" {
-  description = "URL for CLI releases"
-  value       = module.cli_distribution.releases_container_url
+output "cli_distribution_url" {
+  description = "The URL for the CLI install script"
+  value       = "https://get.kilometers.ai/install.sh"
 }
 
 # Static Web App Outputs

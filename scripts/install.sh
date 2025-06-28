@@ -1,19 +1,26 @@
 #!/bin/sh
 # Kilometers.ai CLI Installer
-# Usage: curl -sSL https://get.kilometers.ai | sh
+# 
+# Primary method (branded):
+#   curl -sSL https://get.kilometers.ai/install.sh | sh
+# 
+# Backup method (direct GitHub):  
+#   curl -sSL https://raw.githubusercontent.com/kilometers-ai/kilometers/main/scripts/install.sh | sh
+#
+# Both methods download binaries from GitHub Releases for maximum reliability
 
 set -e
 
 # Configuration
 BINARY_NAME="km"
 GITHUB_REPO="kilometers-ai/kilometers"
-CDN_BASE="https://stkmclib57e3ec7.blob.core.windows.net"
 INSTALL_DIR="/usr/local/bin"
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Helper functions
@@ -28,6 +35,10 @@ warn() {
 error() {
     printf "${RED}[ERROR]${NC} %s\n" "$1" >&2
     exit 1
+}
+
+success() {
+    printf "${BLUE}[SUCCESS]${NC} %s\n" "$1"
 }
 
 # Detect OS and architecture
@@ -48,11 +59,6 @@ detect_platform() {
         *) error "Unsupported architecture: $ARCH" ;;
     esac
     
-    # Windows ARM64 is not supported yet
-    if [ "$OS" = "windows" ] && [ "$ARCH" = "arm64" ]; then
-        error "Windows ARM64 is not supported yet"
-    fi
-    
     PLATFORM="${OS}-${ARCH}"
     info "Detected platform: $PLATFORM"
 }
@@ -61,9 +67,10 @@ detect_platform() {
 check_permissions() {
     if [ -w "$INSTALL_DIR" ]; then
         SUDO=""
+        info "Installing to $INSTALL_DIR (no sudo required)"
     else
         if command -v sudo >/dev/null 2>&1; then
-            info "Installation requires sudo privileges"
+            info "Installing to $INSTALL_DIR (requires sudo)"
             SUDO="sudo"
         else
             error "Cannot write to $INSTALL_DIR and sudo is not available"
@@ -71,123 +78,110 @@ check_permissions() {
     fi
 }
 
-# Download the binary
+# Download the binary from GitHub Releases (most reliable)
 download_binary() {
-    # Construct binary name
     BINARY_FILE="km-${PLATFORM}"
     if [ "$OS" = "windows" ]; then
         BINARY_FILE="${BINARY_FILE}.exe"
     fi
     
-    # Try CDN first, fallback to GitHub releases
-    DOWNLOAD_URL="${CDN_BASE}/releases/latest/${BINARY_FILE}"
     TEMP_FILE="/tmp/km-download-$$"
     
-    info "Downloading Kilometers CLI..."
-    info "URL: $DOWNLOAD_URL"
+    # Always use GitHub Releases for maximum reliability
+    GITHUB_URL="https://github.com/${GITHUB_REPO}/releases/latest/download/${BINARY_FILE}"
+    
+    info "Downloading Kilometers CLI from GitHub Releases..."
+    info "Source: ${GITHUB_URL}"
     
     if command -v curl >/dev/null 2>&1; then
-        HTTP_CODE=$(curl -w '%{http_code}' -L -o "$TEMP_FILE" "$DOWNLOAD_URL" 2>/dev/null)
+        if curl -L --fail -o "$TEMP_FILE" "$GITHUB_URL" 2>/dev/null; then
+            success "Download completed successfully"
+        else
+            error "Download failed from GitHub Releases"
+        fi
     elif command -v wget >/dev/null 2>&1; then
-        HTTP_CODE=$(wget --server-response -O "$TEMP_FILE" "$DOWNLOAD_URL" 2>&1 | awk '/^  HTTP/{print $2}' | tail -1)
+        if wget -O "$TEMP_FILE" "$GITHUB_URL" 2>/dev/null; then
+            success "Download completed successfully"  
+        else
+            error "Download failed from GitHub Releases"
+        fi
     else
         error "Neither curl nor wget found. Please install one of them."
     fi
     
-    # If CDN fails, try GitHub releases
-    if [ "$HTTP_CODE" != "200" ]; then
-        warn "CDN download failed, trying GitHub releases..."
-        GITHUB_URL="https://github.com/${GITHUB_REPO}/releases/latest/download/${BINARY_FILE}"
-        
-        if command -v curl >/dev/null 2>&1; then
-            curl -L -o "$TEMP_FILE" "$GITHUB_URL" || error "Download failed"
-        else
-            wget -O "$TEMP_FILE" "$GITHUB_URL" || error "Download failed"
-        fi
-    fi
-    
     # Verify download
     if [ ! -f "$TEMP_FILE" ] || [ ! -s "$TEMP_FILE" ]; then
-        error "Download failed or file is empty"
+        error "Downloaded file is missing or empty"
     fi
-    
-    info "Download complete"
 }
 
 # Install the binary
 install_binary() {
-    info "Installing to $INSTALL_DIR/$BINARY_NAME..."
+    info "Installing Kilometers CLI..."
     
-    # Make executable
     chmod +x "$TEMP_FILE"
-    
-    # Move to install directory
     $SUDO mv "$TEMP_FILE" "$INSTALL_DIR/$BINARY_NAME"
     
-    # Verify installation
     if command -v "$BINARY_NAME" >/dev/null 2>&1; then
-        info "Installation successful!"
+        success "Installation completed successfully!"
     else
         warn "Binary installed but not found in PATH"
         warn "You may need to add $INSTALL_DIR to your PATH"
     fi
 }
 
-# Post-installation setup
+# Post-installation setup and info
 post_install() {
-    # Show version
+    echo ""
+    success "🎉 Kilometers CLI installed successfully!"
+    echo ""
+    
+    # Show version if available
     if command -v "$BINARY_NAME" >/dev/null 2>&1; then
         VERSION=$("$BINARY_NAME" --version 2>/dev/null || echo "unknown")
         info "Installed version: $VERSION"
+        echo ""
     fi
     
-    # Configuration hints
-    cat << EOF
-
-${GREEN}✓ Kilometers CLI installed successfully!${NC}
-
-To get started:
-  1. Set your API key:
-     export KILOMETERS_API_KEY="your-api-key-here"
-  
-  2. Wrap your MCP server:
-     km npx @modelcontextprotocol/server-github
-  
-  3. View debug logs:
-     export KM_DEBUG=true
-
-For more information:
-  - Documentation: https://docs.kilometers.ai
-  - Dashboard: https://app.kilometers.ai
-  - Support: support@kilometers.ai
-
-EOF
-}
-
-# Uninstall function (for future use)
-uninstall() {
-    info "Uninstalling Kilometers CLI..."
+    # Show quick start guide
+    printf "${BLUE}Quick Start:${NC}\n"
+    echo "  1. Set your API key:"
+    echo "     export KILOMETERS_API_KEY=\"your-api-key-here\""
+    echo ""
+    echo "  2. Wrap your MCP server:"
+    echo "     km npx @modelcontextprotocol/server-github"
+    echo ""
+    echo "  3. View debug logs:"
+    echo "     export KM_DEBUG=true"
+    echo ""
     
-    if [ -f "$INSTALL_DIR/$BINARY_NAME" ]; then
-        $SUDO rm -f "$INSTALL_DIR/$BINARY_NAME"
-        info "Kilometers CLI uninstalled"
-    else
-        warn "Kilometers CLI not found at $INSTALL_DIR/$BINARY_NAME"
-    fi
+    printf "${BLUE}Resources:${NC}\n"
+    echo "  • Dashboard: https://app.kilometers.ai"
+    echo "  • Documentation: https://docs.kilometers.ai"
+    echo "  • Support: support@kilometers.ai"
+    echo ""
+    
+    printf "${GREEN}✓ Ready to monitor your AI tools!${NC}\n"
 }
 
 # Main installation flow
 main() {
-    info "Installing Kilometers CLI..."
+    echo ""
+    printf "${BLUE}Kilometers.ai CLI Installer${NC}\n"
+    echo "==============================="
+    echo ""
     
-    # Parse arguments
     case "${1:-}" in
-        --uninstall)
-            uninstall
-            exit 0
-            ;;
         --help)
-            echo "Usage: $0 [--uninstall] [--help]"
+            echo "Usage: $0 [--help]"
+            echo ""
+            echo "Install via branded domain:"
+            echo "  curl -sSL https://get.kilometers.ai/install.sh | sh"
+            echo ""
+            echo "Install via GitHub direct:"
+            echo "  curl -sSL https://raw.githubusercontent.com/kilometers-ai/kilometers/main/scripts/install.sh | sh"
+            echo ""
+            echo "Both methods download from GitHub Releases for reliability."
             exit 0
             ;;
     esac

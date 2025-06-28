@@ -420,7 +420,7 @@ resource "azurerm_dns_cname_record" "www" {
   zone_name           = azurerm_dns_zone.kilometers_ai.name
   resource_group_name = azurerm_resource_group.main.name
   ttl                 = 300
-  record              = module.static_web_app.default_host_name
+  record              = azurerm_dns_zone.kilometers_ai.name
 }
 
 resource "azurerm_dns_cname_record" "get" {
@@ -428,7 +428,7 @@ resource "azurerm_dns_cname_record" "get" {
   zone_name           = azurerm_dns_zone.kilometers_ai.name
   resource_group_name = azurerm_resource_group.main.name
   ttl                 = 300
-  record              = module.cli_distribution.storage_primary_web_hostname
+  record              = module.cli_distribution.cdn_endpoint_hostname
 }
 
 resource "azurerm_dns_cname_record" "api_dev" {
