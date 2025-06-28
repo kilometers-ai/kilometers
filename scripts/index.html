@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kilometers.ai CLI Install</title>
+    <style>
+        body {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background: #0a0a0a;
+            color: #fafafa;
+            margin: 0;
+            padding: 2rem;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .logo {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #0ea5e9;
+            margin-bottom: 0.5rem;
+        }
+        .install-box {
+            background: #1a1a1a;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 2rem 0;
+        }
+        .command {
+            background: #000;
+            color: #0ea5e9;
+            padding: 1rem;
+            border-radius: 4px;
+            font-family: monospace;
+            border: 1px solid #333;
+            margin: 1rem 0;
+        }
+        .copy-btn {
+            background: #0ea5e9;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: monospace;
+            margin-left: 1rem;
+        }
+        .copy-btn:hover {
+            background: #0284c7;
+        }
+        .info {
+            margin: 1rem 0;
+            color: #888;
+        }
+        .platform-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+        .platform-link {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 1rem;
+            text-align: center;
+            text-decoration: none;
+            color: #fafafa;
+            transition: border-color 0.2s;
+        }
+        .platform-link:hover {
+            border-color: #0ea5e9;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 3rem;
+            color: #666;
+        }
+        .footer a {
+            color: #0ea5e9;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">Kilometers.ai</div>
+            <p>CLI Installation</p>
+        </div>
+
+        <div class="install-box">
+            <h2>Quick Install</h2>
+            <p>Install the Kilometers CLI with a single command:</p>
+            <div class="command" id="install-command">
+                curl -sSL https://get.kilometers.ai | sh
+                <button class="copy-btn" onclick="copyCommand()">Copy</button>
+            </div>
+            <p class="info">This command will automatically detect your platform and install the appropriate binary.</p>
+        </div>
+
+        <h3>Manual Downloads</h3>
+        <div class="platform-links">
+            <a href="/releases/latest/km-linux-amd64" class="platform-link">
+                <strong>Linux AMD64</strong><br>
+                Most Intel/AMD systems
+            </a>
+            <a href="/releases/latest/km-linux-arm64" class="platform-link">
+                <strong>Linux ARM64</strong><br>
+                Raspberry Pi, ARM servers
+            </a>
+            <a href="/releases/latest/km-darwin-amd64" class="platform-link">
+                <strong>macOS Intel</strong><br>
+                Intel-based Macs
+            </a>
+            <a href="/releases/latest/km-darwin-arm64" class="platform-link">
+                <strong>macOS Apple Silicon</strong><br>
+                M1/M2/M3 Macs
+            </a>
+            <a href="/releases/latest/km-windows-amd64.exe" class="platform-link">
+                <strong>Windows AMD64</strong><br>
+                64-bit Windows
+            </a>
+        </div>
+
+        <h3>Windows PowerShell</h3>
+        <div class="command">
+            iwr -useb https://get.kilometers.ai/install.ps1 | iex
+        </div>
+
+        <div class="footer">
+            <p>
+                <a href="https://kilometers.ai">Website</a> | 
+                <a href="https://docs.kilometers.ai">Documentation</a> | 
+                <a href="https://github.com/kilometers-ai/kilometers">GitHub</a>
+            </p>
+            <p>Kilometers.ai - Monitor your AI agent activity</p>
+        </div>
+    </div>
+
+    <script>
+        function copyCommand() {
+            const command = "curl -sSL https://get.kilometers.ai | sh";
+            navigator.clipboard.writeText(command).then(() => {
+                const btn = document.querySelector('.copy-btn');
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                btn.style.background = '#059669';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '#0ea5e9';
+                }, 2000);
+            });
+        }
+
+        // Detect curl user-agent and redirect to raw script
+        if (navigator.userAgent.includes('curl') || 
+            navigator.userAgent.includes('wget') || 
+            navigator.userAgent.includes('HTTPie')) {
+            window.location.href = '/install/install.sh';
+        }
+    </script>
+</body>
+</html> 

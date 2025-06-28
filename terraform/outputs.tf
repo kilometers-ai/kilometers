@@ -151,7 +151,7 @@ output "deployment_summary" {
     api_url       = "https://${azurerm_linux_web_app.api.default_hostname}"
     health_check  = "https://${azurerm_linux_web_app.api.default_hostname}/health"
     swagger_ui    = "https://${azurerm_linux_web_app.api.default_hostname}/swagger"
-    cli_install   = "curl -sSL https://get.kilometers.ai | sh"
+    cli_install   = "curl -sSL https://${module.cli_distribution.storage_account_name}.blob.core.windows.net/install/install.sh | sh"
     dashboard_url = "https://app.kilometers.ai" # Future
     marketing_url = "https://kilometers.ai"     # Future
   }

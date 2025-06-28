@@ -1,0 +1,371 @@
+#!/bin/sh
+# Kilometers.ai CLI Installer
+# Usage: curl -sSL https://get.kilometers.ai | sh
+
+set -e
+
+# Configuration
+BINARY_NAME="km"
+GITHUB_REPO="kilometers-ai/kilometers"
+CDN_BASE="https://get.kilometers.ai"
+INSTALL_DIR="/usr/local/bin"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Helper functions
+info() {
+    printf "${GREEN}[INFO]${NC} %s\n" "$1"
+}
+
+warn() {
+    printf "${YELLOW}[WARN]${NC} %s\n" "$1"
+}
+
+error() {
+    printf "${RED}[ERROR]${NC} %s\n" "$1" >&2
+    exit 1
+}
+
+# Detect OS and architecture
+detect_platform() {
+    OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+    ARCH=$(uname -m)
+    
+    case $OS in
+        linux) OS="linux" ;;
+        darwin) OS="darwin" ;;
+        mingw*|msys*|cygwin*) OS="windows" ;;
+        *) error "Unsupported operating system: $OS" ;;
+    esac
+    
+    case $ARCH in
+        x86_64|amd64) ARCH="amd64" ;;
+        arm64|aarch64) ARCH="arm64" ;;
+        *) error "Unsupported architecture: $ARCH" ;;
+    esac
+    
+    # Windows ARM64 is not supported yet
+    if [ "$OS" = "windows" ] && [ "$ARCH" = "arm64" ]; then
+        error "Windows ARM64 is not supported yet"
+    fi
+    
+    PLATFORM="${OS}-${ARCH}"
+    info "Detected platform: $PLATFORM"
+}
+
+# Check if we need sudo
+check_permissions() {
+    if [ -w "$INSTALL_DIR" ]; then
+        SUDO=""
+    else
+        if command -v sudo >/dev/null 2>&1; then
+            info "Installation requires sudo privileges"
+            SUDO="sudo"
+        else
+            error "Cannot write to $INSTALL_DIR and sudo is not available"
+        fi
+    fi
+}
+
+# Download the binary
+download_binary() {
+    # Construct binary name
+    BINARY_FILE="km-${PLATFORM}"
+    if [ "$OS" = "windows" ]; then
+        BINARY_FILE="${BINARY_FILE}.exe"
+    fi
+    
+    # Try CDN first, fallback to GitHub releases
+    DOWNLOAD_URL="${CDN_BASE}/releases/latest/${BINARY_FILE}"
+    TEMP_FILE="/tmp/km-download-$$"
+    
+    info "Downloading Kilometers CLI..."
+    info "URL: $DOWNLOAD_URL"
+    
+    if command -v curl >/dev/null 2>&1; then
+        HTTP_CODE=$(curl -w '%{http_code}' -L -o "$TEMP_FILE" "$DOWNLOAD_URL" 2>/dev/null)
+    elif command -v wget >/dev/null 2>&1; then
+        HTTP_CODE=$(wget --server-response -O "$TEMP_FILE" "$DOWNLOAD_URL" 2>&1 | awk '/^  HTTP/{print $2}' | tail -1)
+    else
+        error "Neither curl nor wget found. Please install one of them."
+    fi
+    
+    # If CDN fails, try GitHub releases
+    if [ "$HTTP_CODE" != "200" ]; then
+        warn "CDN download failed, trying GitHub releases..."
+        GITHUB_URL="https://github.com/${GITHUB_REPO}/releases/latest/download/${BINARY_FILE}"
+        
+        if command -v curl >/dev/null 2>&1; then
+            curl -L -o "$TEMP_FILE" "$GITHUB_URL" || error "Download failed"
+        else
+            wget -O "$TEMP_FILE" "$GITHUB_URL" || error "Download failed"
+        fi
+    fi
+    
+    # Verify download
+    if [ ! -f "$TEMP_FILE" ] || [ ! -s "$TEMP_FILE" ]; then
+        error "Download failed or file is empty"
+    fi
+    
+    info "Download complete"
+}
+
+# Install the binary
+install_binary() {
+    info "Installing to $INSTALL_DIR/$BINARY_NAME..."
+    
+    # Make executable
+    chmod +x "$TEMP_FILE"
+    
+    # Move to install directory
+    $SUDO mv "$TEMP_FILE" "$INSTALL_DIR/$BINARY_NAME"
+    
+    # Verify installation
+    if command -v "$BINARY_NAME" >/dev/null 2>&1; then
+        info "Installation successful!"
+    else
+        warn "Binary installed but not found in PATH"
+        warn "You may need to add $INSTALL_DIR to your PATH"
+    fi
+}
+
+# Post-installation setup
+post_install() {
+    # Show version
+    if command -v "$BINARY_NAME" >/dev/null 2>&1; then
+        VERSION=$("$BINARY_NAME" --version 2>/dev/null || echo "unknown")
+        info "Installed version: $VERSION"
+    fi
+    
+    # Configuration hints
+    cat << EOF
+
+${GREEN}✓ Kilometers CLI installed successfully!${NC}
+
+To get started:
+  1. Set your API key:
+     export KILOMETERS_API_KEY="your-api-key-here"
+  
+  2. Wrap your MCP server:
+     km npx @modelcontextprotocol/server-github
+  
+  3. View debug logs:
+     export KM_DEBUG=true
+
+For more information:
+  - Documentation: https://docs.kilometers.ai
+  - Dashboard: https://app.kilometers.ai
+  - Support: support@kilometers.ai
+
+EOF
+}
+
+# Uninstall function (for future use)
+uninstall() {
+    info "Uninstalling Kilometers CLI..."
+    
+    if [ -f "$INSTALL_DIR/$BINARY_NAME" ]; then
+        $SUDO rm -f "$INSTALL_DIR/$BINARY_NAME"
+        info "Kilometers CLI uninstalled"
+    else
+        warn "Kilometers CLI not found at $INSTALL_DIR/$BINARY_NAME"
+    fi
+}
+
+# Main installation flow
+main() {
+    info "Installing Kilometers CLI..."
+    
+    # Parse arguments
+    case "${1:-}" in
+        --uninstall)
+            uninstall
+            exit 0
+            ;;
+        --help)
+            echo "Usage: $0 [--uninstall] [--help]"
+            exit 0
+            ;;
+    esac
+    
+    detect_platform
+    check_permissions
+    download_binary
+    install_binary
+    post_install
+}
+
+# Run main function
+main "$@"
+
+<!--
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kilometers.ai CLI Install</title>
+    <style>
+        body {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background: #0a0a0a;
+            color: #fafafa;
+            margin: 0;
+            padding: 2rem;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .logo {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #0ea5e9;
+            margin-bottom: 0.5rem;
+        }
+        .install-box {
+            background: #1a1a1a;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 2rem 0;
+        }
+        .command {
+            background: #000;
+            color: #0ea5e9;
+            padding: 1rem;
+            border-radius: 4px;
+            font-family: monospace;
+            border: 1px solid #333;
+            margin: 1rem 0;
+        }
+        .copy-btn {
+            background: #0ea5e9;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: monospace;
+            margin-left: 1rem;
+        }
+        .copy-btn:hover {
+            background: #0284c7;
+        }
+        .info {
+            margin: 1rem 0;
+            color: #888;
+        }
+        .platform-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+        .platform-link {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 1rem;
+            text-align: center;
+            text-decoration: none;
+            color: #fafafa;
+            transition: border-color 0.2s;
+        }
+        .platform-link:hover {
+            border-color: #0ea5e9;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 3rem;
+            color: #666;
+        }
+        .footer a {
+            color: #0ea5e9;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">Kilometers.ai</div>
+            <p>CLI Installation</p>
+        </div>
+
+        <div class="install-box">
+            <h2>Quick Install</h2>
+            <p>Install the Kilometers CLI with a single command:</p>
+            <div class="command" id="install-command">
+                curl -sSL https://get.kilometers.ai | sh
+                <button class="copy-btn" onclick="copyCommand()">Copy</button>
+            </div>
+            <p class="info">This command will automatically detect your platform and install the appropriate binary.</p>
+        </div>
+
+        <h3>Manual Downloads</h3>
+        <div class="platform-links">
+            <a href="https://get.kilometers.ai/releases/latest/km-linux-amd64" class="platform-link">
+                <strong>Linux AMD64</strong><br>
+                Most Intel/AMD systems
+            </a>
+            <a href="https://get.kilometers.ai/releases/latest/km-linux-arm64" class="platform-link">
+                <strong>Linux ARM64</strong><br>
+                Raspberry Pi, ARM servers
+            </a>
+            <a href="https://get.kilometers.ai/releases/latest/km-darwin-amd64" class="platform-link">
+                <strong>macOS Intel</strong><br>
+                Intel-based Macs
+            </a>
+            <a href="https://get.kilometers.ai/releases/latest/km-darwin-arm64" class="platform-link">
+                <strong>macOS Apple Silicon</strong><br>
+                M1/M2/M3 Macs
+            </a>
+            <a href="https://get.kilometers.ai/releases/latest/km-windows-amd64.exe" class="platform-link">
+                <strong>Windows AMD64</strong><br>
+                64-bit Windows
+            </a>
+        </div>
+
+        <h3>Windows PowerShell</h3>
+        <div class="command">
+            iwr -useb https://get.kilometers.ai/install.ps1 | iex
+        </div>
+
+        <div class="footer">
+            <p>
+                <a href="https://kilometers.ai">Website</a> | 
+                <a href="https://docs.kilometers.ai">Documentation</a> | 
+                <a href="https://github.com/kilometers-ai/kilometers">GitHub</a>
+            </p>
+            <p>Kilometers.ai - Monitor your AI agent activity</p>
+        </div>
+    </div>
+
+    <script>
+        function copyCommand() {
+            const command = "curl -sSL https://get.kilometers.ai | sh";
+            navigator.clipboard.writeText(command).then(() => {
+                const btn = document.querySelector('.copy-btn');
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                btn.style.background = '#059669';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '#0ea5e9';
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>
+--> 

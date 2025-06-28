@@ -71,12 +71,6 @@ resource "azurerm_cdn_endpoint" "get" {
     host_name = azurerm_storage_account.cli_distribution.primary_web_host
   }
 
-  #TODO: Custom domain will be configured manually after DNS setup
-  # custom_domain {
-  #   name      = "get-kilometers-ai"
-  #   host_name = "get.kilometers.ai"
-  # }
-
   # Caching rules for efficient distribution
   global_delivery_rule {
     cache_expiration_action {
@@ -101,4 +95,16 @@ resource "azurerm_cdn_endpoint" "get" {
   }
 
   tags = var.tags
+}
+
+# Custom domain for get.kilometers.ai
+resource "azurerm_cdn_endpoint_custom_domain" "get_kilometers_ai" {
+  name            = "get-kilometers-ai"
+  cdn_endpoint_id = azurerm_cdn_endpoint.get.id
+  host_name       = "get.kilometers.ai"
+
+  cdn_managed_https {
+    certificate_type = "Dedicated"
+    protocol_type    = "ServerNameIndication"
+  }
 }

@@ -208,14 +208,27 @@ jobs:
             --pattern "*/km-*" \
             --overwrite
 
-      - name: Upload install script
+      - name: Upload install scripts
         run: |
           STORAGE_ACCOUNT="${{ steps.storage.outputs.account }}"
 
-          # Skip install script upload for now - file doesn't exist
-          echo "Skipping install script upload - scripts/install.sh not found"
+          # Upload Unix/Linux install script
+          if [ -f "scripts/install.sh" ]; then
+            az storage blob upload \
+              --auth-mode login \
+              --account-name "${STORAGE_ACCOUNT}" \
+              --container-name "install" \
+              --name "install.sh" \
+              --file "scripts/install.sh" \
+              --content-type "text/plain" \
+              --overwrite
+            echo "Uploaded Unix install script"
+          else
+            echo "ERROR: scripts/install.sh not found"
+            exit 1
+          fi
 
-          # Upload Windows installer (PowerShell) if it exists
+          # Upload Windows installer (PowerShell)
           if [ -f "scripts/install.ps1" ]; then
             az storage blob upload \
               --auth-mode login \
@@ -225,8 +238,26 @@ jobs:
               --file "scripts/install.ps1" \
               --content-type "text/plain" \
               --overwrite
+            echo "Uploaded Windows install script"
           else
-            echo "Skipping Windows installer upload - scripts/install.ps1 not found"
+            echo "ERROR: scripts/install.ps1 not found"
+            exit 1
+          fi
+
+          # Upload the install page for browsers
+          if [ -f "scripts/index.html" ]; then
+            az storage blob upload \
+              --auth-mode login \
+              --account-name "${STORAGE_ACCOUNT}" \
+              --container-name '$web' \
+              --name "index.html" \
+              --file "scripts/index.html" \
+              --content-type "text/html" \
+              --overwrite
+            echo "Uploaded install page"
+          else
+            echo "ERROR: scripts/index.html not found"
+            exit 1
           fi
         env:
           ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
