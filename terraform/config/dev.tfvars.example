@@ -2,16 +2,33 @@
 # Copy this to dev.tfvars and replace with your actual values
 # NEVER commit the actual dev.tfvars file!
 
+# ===== OPTION 1: Use this file with real values (LESS SECURE) =====
+# Replace placeholders below with actual values
+# Make sure dev.tfvars is never committed to git!
+
+# ===== OPTION 2: Use environment variables (MORE SECURE) =====
+# Instead of putting sensitive values in this file, use environment variables:
+#
+# export TF_VAR_subscription_id="b902128f-2e17-43c6-8ba5-49bf19e3f82b"
+# export TF_VAR_arm_client_id="df6270a5-7c97-4c9a-ac19-a1da3d52223e"
+# export TF_VAR_db_admin_password="YourSecurePassword123!"
+# export TF_VAR_github_token="ghp_your_github_token_here"
+#
+# Then you can either:
+# A) Comment out sensitive variables below (Terraform will use env vars)
+# B) Set sensitive variables to empty strings
+# C) Use this template but override with: terraform plan -var="db_admin_password=$TF_VAR_db_admin_password"
+
 environment     = "dev"        # dev, staging, or prod
 location        = "Central US" # Choose the cheapest region for your needs
-subscription_id = "YOUR_AZURE_SUBSCRIPTION_ID"
+subscription_id = "YOUR_AZURE_SUBSCRIPTION_ID"  # OR: Use TF_VAR_subscription_id env var
 
 # Azure Service Principal for GitHub Actions
-arm_client_id = "YOUR_SERVICE_PRINCIPAL_CLIENT_ID"
+arm_client_id = "YOUR_SERVICE_PRINCIPAL_CLIENT_ID"  # OR: Use TF_VAR_arm_client_id env var
 
 # Database Configuration
 db_admin_username = "pgadmin"
-db_admin_password = "YOUR_SECURE_DATABASE_PASSWORD" # Use a strong password!
+db_admin_password = "YOUR_SECURE_DATABASE_PASSWORD"  # OR: Use TF_VAR_db_admin_password env var
 
 # Network Security
 # Get current IPv4: curl -4 -s ifconfig.me
@@ -22,7 +39,7 @@ allowed_ip_ranges = [
 # GitHub Integration
 github_organization = "YOUR_GITHUB_ORG" # or organization
 github_repository   = "YOUR_GITHUB_REPO"
-github_token        = "YOUR_GITHUB_TOKEN" # Set via environment variable TF_VAR_github_token
+github_token        = "YOUR_GITHUB_TOKEN"  # OR: Use TF_VAR_github_token env var
 
 # API Configuration
 api_version = "1.0.0"
@@ -60,9 +77,49 @@ api_version = "1.0.0"
 # enable_free_tier = false     # Don't use free tier limitations in prod
 # enable_auto_shutdown = false # Keep production always running 
 
-# ===== SECURITY NOTES =====
-# 1. NEVER commit the actual dev.tfvars file to git
-# 2. Use environment variables for sensitive values:
-#    export TF_VAR_db_admin_password="your_password"
-#    export TF_VAR_github_token="your_token"
-# 3. Keep this template updated when adding new variables 
+# ===== SECURITY IMPLEMENTATION GUIDE =====
+
+# RECOMMENDED APPROACH: Use environment variables for all sensitive data
+# This keeps secrets out of files entirely and works great with CI/CD
+
+# 1. Set up your environment (add to ~/.zshrc or ~/.bashrc for persistence):
+#    export TF_VAR_subscription_id="b902128f-2e17-43c6-8ba5-49bf19e3f82b"
+#    export TF_VAR_arm_client_id="df6270a5-7c97-4c9a-ac19-a1da3d52223e"
+#    export TF_VAR_db_admin_password="YourSecurePassword123!"
+#    export TF_VAR_github_token="ghp_your_github_token_here"
+
+# 2. Create a minimal dev.tfvars with only non-sensitive values:
+#    environment = "dev"
+#    location = "Central US"
+#    db_admin_username = "pgadmin"
+#    allowed_ip_ranges = ["99.43.150.75/32"]
+#    github_organization = "kilometers-ai"
+#    github_repository = "kilometers"
+#    api_version = "1.0.0"
+
+# 3. Run Terraform commands normally (env vars are automatically picked up):
+#    terraform plan -var-file=config/dev.tfvars
+#    terraform apply -var-file=config/dev.tfvars
+
+# ALTERNATIVE: Override specific variables from command line:
+#    terraform plan -var-file=config/dev.tfvars -var="db_admin_password=$MY_DB_PASSWORD"
+
+# FOR CI/CD: Set environment variables in GitHub Actions secrets:
+#    - TF_VAR_subscription_id
+#    - TF_VAR_arm_client_id  
+#    - TF_VAR_db_admin_password
+#    - TF_VAR_github_token
+
+# SECURITY BEST PRACTICES:
+# ✅ Use environment variables for passwords, tokens, and API keys
+# ✅ Use strong passwords (12+ chars, mixed case, numbers, symbols)
+# ✅ Rotate secrets regularly (monthly for high-security environments)
+# ✅ Never commit .tfvars files with real secrets to git
+# ✅ Use least-privilege access for service principals
+# ✅ Monitor for exposed secrets with GitHub secret scanning
+
+# NEVER DO:
+# ❌ Commit real passwords or tokens to git
+# ❌ Share .tfvars files via email or Slack
+# ❌ Use weak passwords like "Password123!"
+# ❌ Store secrets in plain text files on shared systems 
