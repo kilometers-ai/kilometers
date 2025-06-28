@@ -61,7 +61,96 @@ terraform refresh -var-file=config/dev.tfvars
 terraform import -var-file=config/dev.tfvars resource.name resource_id
 ```
 
-### 2. Azure Static Web Apps Deployment Pattern
+### 2. Azure Static Web Apps DNS Configuration Pattern (PRODUCTION PROVEN)
+
+**Critical Discovery**: Azure Static Web Apps requires different validation methods for different domain types.
+
+```terraform
+# Domain Classification Logic
+locals {
+  all_custom_domains = var.custom_domains
+  
+  # Apex domain: has exactly one dot (e.g., "kilometers.ai")  
+  # Subdomain: has more than one dot (e.g., "www.kilometers.ai")
+  apex_domains = [for domain in local.all_custom_domains : domain if length(split(".", domain)) == 2]
+  subdomain_domains = [for domain in local.all_custom_domains : domain if length(split(".", domain)) > 2]
+}
+
+# Apex domains MUST use dns-txt-token validation
+resource "azurerm_static_web_app_custom_domain" "apex_domains" {
+  for_each          = toset(local.apex_domains)
+  static_web_app_id = azurerm_static_web_app.marketing.id
+  domain_name       = each.value
+  validation_type   = "dns-txt-token"  # Required - CNAME conflicts with NS/SOA/MX records
+}
+
+# Subdomains can use cname-delegation validation  
+resource "azurerm_static_web_app_custom_domain" "subdomain_domains" {
+  for_each          = toset(local.subdomain_domains)
+  static_web_app_id = azurerm_static_web_app.marketing.id
+  domain_name       = each.value
+  validation_type   = "cname-delegation"  # Works for subdomains
+}
+```
+
+**DNS Record Configuration:**
+```terraform
+# Apex domain uses A record (not CNAME) - Azure alias record
+resource "azurerm_dns_a_record" "apex" {
+  name                = "@"
+  zone_name           = azurerm_dns_zone.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  ttl                 = 300
+  target_resource_id  = azurerm_static_web_app.marketing.id  # Azure alias record
+}
+
+# Subdomains use CNAME records
+resource "azurerm_dns_cname_record" "www" {
+  name                = "www"
+  zone_name           = azurerm_dns_zone.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  ttl                 = 300
+  record              = azurerm_static_web_app.marketing.default_host_name
+}
+```
+
+### 3. Orphaned Resource Cleanup Pattern (COST OPTIMIZATION)
+
+**Problem**: When `random_id.suffix` changes, resources with old suffix become orphaned in Azure but not tracked in Terraform state.
+
+```bash
+# Detection Pattern
+ORPHANED_SUFFIX="old_suffix_value"
+az resource list --query "[?contains(name, '$ORPHANED_SUFFIX')]" --output table
+
+# Safe Deletion Order (respecting Azure dependencies)
+# 1. Static Web Apps (no dependencies)
+# 2. Application Insights (no dependencies)  
+# 3. App Service Plans (no web apps using them)
+# 4. Storage Accounts (no services using them)
+# 5. Log Analytics Workspaces (managed resources, delete last)
+
+# Automated Cleanup Script Pattern
+delete_resource() {
+    local resource_id="$1"
+    local resource_name="$2"
+    
+    echo "🗑️  Deleting: $resource_name"
+    if az resource delete --ids "$resource_id" --output none; then
+        echo "   ✅ Successfully deleted: $resource_name"
+    else
+        echo "   ❌ Failed to delete: $resource_name"
+        return 1
+    fi
+}
+
+# Get orphaned resources and delete in safe order
+ORPHANED_RESOURCES=$(az resource list \
+    --query "[?contains(name, '$ORPHANED_SUFFIX')].{id:id,name:name,type:type}" \
+    --output json)
+```
+
+### 4. Azure Static Web Apps Deployment Pattern
 
 ```yaml
 # GitHub Actions workflow for Azure Static Web Apps
@@ -93,7 +182,7 @@ jobs:
           output_location: "out"
 ```
 
-### 3. Clean Dependency Management Pattern
+### 5. Clean Dependency Management Pattern
 
 ```json
 // Problem: Conflicting peer dependencies break builds
@@ -132,7 +221,7 @@ npm uninstall packagename
 
 ## Core Architecture Principles
 
-### 4. Transparent Proxy Pattern
+### 6. Transparent Proxy Pattern
 The CLI acts as a transparent proxy, intercepting and forwarding MCP communication without modification.
 
 ```go
@@ -153,7 +242,7 @@ func main() {
 }
 ```
 
-### 5. Event Sourcing Pattern
+### 7. Event Sourcing Pattern
 All interactions are captured as immutable events, enabling replay and analysis.
 
 ```csharp
@@ -171,7 +260,7 @@ public record MpcEvent
 
 ## Marketing Site Architecture Patterns
 
-### 6. Split OAuth Authentication Pattern
+### 8. Split OAuth Authentication Pattern
 The marketing site initiates OAuth but the main application handles completion and token management.
 
 ```typescript
@@ -195,299 +284,85 @@ export function middleware(request: NextRequest) {
 }
 ```
 
-### 7. Feature Flag-Driven Architecture Pattern
+### 9. Feature Flag-Driven Architecture Pattern
 Environment variables control behavior across development and production environments.
 
-```typescript
-// Feature Flag System: 14 Environment Variables
-const getFeatureFlags = (): FeatureFlags => {
-  if (typeof window === "undefined") {
-    // Server-side: use environment variables
-    return {
-      USE_EXTERNAL_APP: process.env.NEXT_PUBLIC_USE_EXTERNAL_APP === "true",
-      EXTERNAL_APP_URL: process.env.NEXT_PUBLIC_EXTERNAL_APP_URL || "https://app.kilometers.ai",
-      ENABLE_GITHUB_OAUTH: process.env.NEXT_PUBLIC_ENABLE_GITHUB_OAUTH === "true",
-      ENABLE_REAL_CONNECTION_CHECK: process.env.NEXT_PUBLIC_ENABLE_REAL_CONNECTION_CHECK === "true",
-      ENABLE_ANALYTICS: process.env.NEXT_PUBLIC_ENABLE_ANALYTICS !== "false",
-      SHOW_COOKIE_BANNER: process.env.NEXT_PUBLIC_SHOW_COOKIE_BANNER !== "false",
-      ENABLE_CONTACT_FORM: process.env.NEXT_PUBLIC_ENABLE_CONTACT_FORM === "true",
-      // ... 7 more connection verification flags
-    }
-  }
-  return defaultFlags
-}
-```
-
-### 8. Static Export Optimization Pattern
-
-```javascript
-// next.config.mjs - Azure Static Web Apps Configuration
-export default {
-  output: "export",          // Static export for CDN hosting
-  trailingSlash: true,       // Consistent URL structure
-  skipTrailingSlashRedirect: true,
-  distDir: "out",            // Output directory for Azure
-  images: {
-    unoptimized: true        // Static hosting compatibility
-  }
-}
-```
-
-### 9. Client-Side Suspense Pattern
-Components using client-side hooks are wrapped in Suspense for proper SSR/hydration.
-
-```typescript
-// Suspense Wrapper Pattern
-import { Suspense } from 'react'
-
-function OnboardingPage() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <OnboardingClient />
-    </Suspense>
-  )
-}
-
-function OnboardingClient() {
-  const searchParams = useSearchParams() // Client-side hook
-  // Component logic using searchParams
-}
-```
-
-## Deployment Patterns
-
-### 10. Targeted Infrastructure Updates Pattern
-For adding new infrastructure without disrupting existing systems.
-
 ```bash
-# Pattern: Safe infrastructure expansion
-# 1. Add new Terraform module/resource
-# 2. Use targeted apply to avoid touching existing resources
-terraform apply -target=module.static_web_app -var-file=config/dev.tfvars
+# Critical OAuth Configuration
+NEXT_PUBLIC_USE_EXTERNAL_APP=true  # MUST be true for production OAuth flow
+NEXT_PUBLIC_EXTERNAL_APP_URL=https://app.kilometers.ai
 
-# 3. Add related GitHub secrets
-terraform apply -target=github_actions_secret.azure_static_web_apps_api_token -var-file=config/dev.tfvars
+# UI Feature Flags
+NEXT_PUBLIC_ENABLE_ANALYTICS=true
+NEXT_PUBLIC_SHOW_COOKIE_BANNER=true
+NEXT_PUBLIC_ENABLE_CONTACT_FORM=false
 
-# 4. Verify state consistency
-terraform refresh -var-file=config/dev.tfvars
-terraform plan -var-file=config/dev.tfvars  # Should show minimal changes
+# Connection Verification System (14 flags total)
+NEXT_PUBLIC_ENABLE_REAL_CONNECTION_CHECK=false
+NEXT_PUBLIC_CONNECTION_CHECK_METHOD=polling
+# ... additional connection flags
 ```
 
-### 11. Path-Based CI/CD Triggering Pattern
+## Production Deployment Patterns
 
-```yaml
-# Selective deployment based on changed directories
-on:
-  push:
-    paths:
-      - 'marketing/**'    # Only trigger on marketing changes
-      - 'api/**'          # Separate trigger for API changes
-      - 'terraform/**'    # Separate trigger for infrastructure
+### 10. Resource Suffix Management Pattern
+Use `random_id.suffix` for unique resource naming while managing lifecycle properly.
 
-# Benefits:
-# - Faster builds (only relevant code)
-# - Reduced deployment conflicts
-# - Clear separation of concerns
-```
+```terraform
+# Generate unique suffix for resource names
+resource "random_id" "suffix" {
+  byte_length = 4
+}
 
-### 12. Environment Variable Management Pattern
-
-```hcl
-# Terraform manages GitHub secrets for deployment
 locals {
-  marketing_environment_variables = {
-    "NEXT_PUBLIC_USE_EXTERNAL_APP" = "false"
-    "NEXT_PUBLIC_EXTERNAL_APP_URL" = "https://app.kilometers.ai"
-    # ... 12 more variables
-  }
+  resource_suffix = random_id.suffix.hex  # e.g., "80aa4338"
+  # All resources use this suffix for unique naming
 }
 
-resource "github_actions_secret" "marketing_env_vars" {
-  for_each        = local.marketing_environment_variables
-  repository      = data.github_repository.main.name
-  secret_name     = each.key
-  plaintext_value = each.value
-}
+# Critical: When changing suffix, expect ALL dependent resources to be recreated
+# Use targeted applies to manage deployment safely
 ```
 
-## API Architecture Patterns
-
-### Hexagonal Architecture Implementation
-
-```csharp
-// Domain Layer (Core Business Logic)
-namespace Kilometers.Domain
-{
-    public interface IEventStore
-    {
-        Task AppendAsync(MpcEvent evt);
-        Task<List<MpcEvent>> GetRecentAsync(string customerId, int limit);
-    }
-    
-    public interface IRiskAnalyzer
-    {
-        RiskLevel Analyze(MpcEvent evt);
-    }
-}
-
-// Infrastructure Layer (External Concerns)
-namespace Kilometers.Infrastructure
-{
-    public class PostgresEventStore : IEventStore
-    {
-        // PostgreSQL implementation
-    }
-    
-    public class RiskAnalyzer : IRiskAnalyzer
-    {
-        // Risk analysis implementation
-    }
-}
-
-// Application Layer (API Endpoints)
-namespace Kilometers.Api
-{
-    // Minimal API endpoints connecting domain to infrastructure
-    app.MapPost("/api/events", async (EventDto dto, IEventStore store) =>
-    {
-        var evt = Event.FromDto(dto);
-        await store.AppendAsync(evt);
-        return Results.Accepted();
-    });
-}
-```
-
-### Dependency Injection Pattern
-
-```csharp
-// DI Container Setup
-var builder = WebApplication.CreateBuilder(args);
-
-// Register domain services
-builder.Services.AddSingleton<IEventStore, PostgresEventStore>();
-builder.Services.AddSingleton<IRiskAnalyzer, RiskAnalyzer>();
-builder.Services.AddSingleton<ICostCalculator, CostCalculator>();
-
-// Register background services
-builder.Services.AddHostedService<EventProcessorService>();
-
-var app = builder.Build();
-```
-
-## Critical Operational Patterns
-
-### 13. Terraform State Recovery Pattern
+### 11. Infrastructure Health Verification Pattern
+Verify infrastructure deployment success with automated checks.
 
 ```bash
-# When Terraform state is inconsistent with Azure reality:
+# Post-deployment verification checklist
+# 1. API Health Check
+curl -f https://app-myapp-api-dev-${SUFFIX}.azurewebsites.net/health
 
-# Step 1: Identify the problem
-terraform plan -var-file=config/dev.tfvars
-# Symptoms: Plans to recreate existing resources
+# 2. DNS Resolution Verification  
+nslookup myapp.com
+nslookup www.myapp.com
+nslookup api.dev.myapp.com
 
-# Step 2: Refresh state
-terraform refresh -var-file=config/dev.tfvars
+# 3. SSL Certificate Validation
+openssl s_client -connect myapp.com:443 -servername myapp.com < /dev/null
 
-# Step 3: Import missing resources
-terraform import -var-file=config/dev.tfvars azurerm_resource_group.main /subscriptions/xyz/resourceGroups/rg-name
+# 4. Database Connectivity
+psql "$CONNECTION_STRING" -c "SELECT 1;"
 
-# Step 4: Verify consistency
-terraform plan -var-file=config/dev.tfvars
-# Should show minimal/expected changes only
+# 5. Storage Account Accessibility
+az storage blob list --account-name "storage${SUFFIX}" --container-name releases
 ```
 
-### 14. Dependency Conflict Resolution Pattern
+---
 
-```bash
-# Pattern: Clean Resolution over Workarounds
+## Production Lessons (June 27, 2025)
 
-# ❌ BAD: Paper over the problem
-echo "legacy-peer-deps=true" > .npmrc
+### DNS Configuration Debugging
+**Issue**: Static Web App custom domain validation fails with cryptic error messages
+**Root Cause**: Azure requires different validation methods for apex vs subdomain domains  
+**Solution**: Implement domain classification logic and use appropriate validation types
 
-# ✅ GOOD: Find and remove root cause
-# 1. Find conflicting packages
-npm ls --depth=0 | grep -E "(WARN|ERROR)"
+### Resource Cleanup Automation
+**Issue**: Manual resource cleanup is error-prone and misses dependencies
+**Solution**: Automated cleanup script with proper dependency ordering and error handling
+**Impact**: Recovered $18-28/month in wasted infrastructure costs
 
-# 2. Check actual usage
-grep -r "import.*problem-package" src/
-grep -r "from.*problem-package" src/
+### Terraform State Synchronization
+**Issue**: State file inconsistency causes Terraform to try recreating existing resources
+**Solution**: Always run `terraform refresh` before major operations and use targeted applies
+**Critical**: State drift is the #1 cause of infrastructure deployment failures
 
-# 3. Remove if unused
-npm uninstall problem-package
-rm unused-component-using-package.tsx
-
-# 4. Verify clean build
-npm run build
-```
-
-### 15. Infrastructure Consistency Validation Pattern
-
-```bash
-# Pattern: Verify infrastructure matches expectations
-
-# 1. List Azure resources
-az resource list --resource-group rg-kilometers-dev --query "[].{Name:name, Type:type}"
-
-# 2. List Terraform state
-terraform state list
-
-# 3. Cross-reference and identify mismatches
-# Look for:
-# - Resources in Azure but not in state
-# - Resources in state but not in Azure  
-# - Name mismatches (different random suffixes)
-
-# 4. Reconcile differences with imports/refreshes
-terraform import -var-file=config/dev.tfvars resource.name azure_resource_id
-```
-
-## Component Interaction Patterns
-
-### Request Flow Pattern
-
-```
-1. AI Client sends MCP request
-   ↓
-2. CLI intercepts and logs request
-   ↓ 
-3. CLI forwards to original MCP server
-   ↓
-4. MCP server processes and responds
-   ↓
-5. CLI intercepts and logs response
-   ↓
-6. CLI forwards response to AI client
-   ↓
-7. CLI batches events and sends to API
-   ↓
-8. API processes events asynchronously
-   ↓
-9. Dashboard queries processed data
-```
-
-### Error Handling Pattern
-
-```csharp
-// Resilient error handling with circuit breaker
-public class ResilientApiClient
-{
-    private readonly CircuitBreaker _circuitBreaker;
-    
-    public async Task<Result> SendEventsAsync(IEnumerable<MpcEvent> events)
-    {
-        return await _circuitBreaker.ExecuteAsync(async () =>
-        {
-            try 
-            {
-                await _httpClient.PostAsJsonAsync("/api/events", events);
-                return Result.Success();
-            }
-            catch (HttpRequestException ex)
-            {
-                // Log and return failure - circuit breaker handles retries
-                return Result.Failure(ex.Message);
-            }
-        });
-    }
-}
-``` 
+*Last Updated: June 27, 2025 - After production deployment and infrastructure optimization* 

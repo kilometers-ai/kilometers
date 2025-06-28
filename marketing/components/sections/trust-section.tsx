@@ -1,4 +1,4 @@
-import { Shield, Award, Lock, Zap } from "lucide-react"
+import { Shield, Award, Lock, Zap } from "lucide-react";
 
 export function TrustSection() {
   const trustItems = [
@@ -20,9 +20,10 @@ export function TrustSection() {
     {
       icon: Award,
       title: "Built by Miles",
-      description: "Former Stripe engineer, AI monitoring expert",
+      description:
+        "Senior engineer on a mission to make AI usage visible, safe, and cost-aware.",
     },
-  ]
+  ];
 
   return (
     <section className="py-20">
@@ -55,13 +56,16 @@ export function TrustSection() {
           <div className="bg-[#18181B] rounded-lg p-8 border border-[#0EA5E9]/20 max-w-4xl mx-auto">
             <h3 className="text-2xl font-bold mb-4">Meet the Founder</h3>
             <p className="text-[#FAFAFA]/80 text-lg leading-relaxed">
-              Built by <span className="text-[#0EA5E9] font-semibold">Miles</span>, former Stripe engineer who got tired
-              of surprise AI bills. After seeing teams struggle with AI visibility, he created Kilometers to solve the
-              monitoring problem once and for all.
+              Built by{" "}
+              <span className="text-[#0EA5E9] font-semibold">Miles</span>, a
+              senior full-stack engineer who got tired of surprise AI bills and
+              blind spots in production. After helping teams build with LLMs, he
+              created Kilometers to bring clarity and control to AI
+              infrastructure.
             </p>
           </div>
         </div>
       </div>
     </section>
-  )
+  );
 }

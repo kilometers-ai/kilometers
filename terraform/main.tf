@@ -448,21 +448,11 @@ resource "azurerm_dns_cname_record" "app_dev" {
 }
 
 # DNS A record for apex domain (kilometers.ai) - points to static web app
+# Note: Azure Static Web Apps requires A record or alias record for apex domains (not CNAME)
 resource "azurerm_dns_a_record" "apex" {
-  count               = var.environment == "prod" ? 1 : 0
   name                = "@"
   zone_name           = azurerm_dns_zone.kilometers_ai.name
   resource_group_name = azurerm_resource_group.main.name
   ttl                 = 300
   target_resource_id  = module.static_web_app.id
-}
-
-# For dev environment, create CNAME alias record instead 
-resource "azurerm_dns_cname_record" "apex_dev" {
-  count               = var.environment == "dev" ? 1 : 0
-  name                = "@"
-  zone_name           = azurerm_dns_zone.kilometers_ai.name
-  resource_group_name = azurerm_resource_group.main.name
-  ttl                 = 300
-  record              = module.static_web_app.default_host_name
 }
