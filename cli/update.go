@@ -181,32 +181,6 @@ func ShowVersion() {
 
 // Add these command handlers to your main.go
 
-func handleCommands() bool {
-	if len(os.Args) < 2 {
-		return false
-	}
-
-	switch os.Args[1] {
-	case "--version", "version":
-		ShowVersion()
-		return true
-
-	case "--update", "update":
-		if err := SelfUpdate(); err != nil {
-			fmt.Fprintf(os.Stderr, "Update failed: %v\n", err)
-			os.Exit(1)
-		}
-		return true
-
-	case "--help", "help":
-		printHelp()
-		return true
-
-	default:
-		return false
-	}
-}
-
 func printHelp() {
 	fmt.Printf(`Kilometers CLI %s
 
