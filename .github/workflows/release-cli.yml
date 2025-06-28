@@ -6,16 +6,14 @@ on:
       - "cli/**"
     branches:
       - main
-    tags:
-      - "cli-v*"
   pull_request:
     paths:
       - "cli/**"
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to release (e.g., v1.0.0)"
-        required: true
+        description: "Version to release (e.g., v2025.06.28.1) - leave empty for auto-generation"
+        required: false
 
 env:
   GO_VERSION: "1.24.4"
@@ -25,6 +23,8 @@ jobs:
   build:
     name: Build CLI Binaries
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}  # Export version for other jobs
 
     strategy:
       matrix:
@@ -54,19 +54,50 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Get version
+      - name: Generate date-based version
         id: version
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          # Check if manual version was provided
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.version }}" ]; then
             VERSION="${{ github.event.inputs.version }}"
-          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/}"
+            echo "Using manual version: ${VERSION}"
           else
-            # For main branch pushes, use commit SHA
-            VERSION="main-${GITHUB_SHA::8}"
+            # Generate date-based version: v2025.06.28.1
+            DATE_VERSION=$(date +%Y.%m.%d)
+            
+            # Get the latest tag for today to determine build number
+            TODAY_TAGS=$(git tag -l "cli-v${DATE_VERSION}.*" | sort -V | tail -1)
+            
+            if [ -z "$TODAY_TAGS" ]; then
+              # First build of the day
+              BUILD_NUMBER=1
+            else
+              # Extract build number and increment
+              LAST_BUILD=$(echo "$TODAY_TAGS" | sed "s/cli-v${DATE_VERSION}.//")
+              BUILD_NUMBER=$((LAST_BUILD + 1))
+            fi
+            
+            VERSION="cli-v${DATE_VERSION}.${BUILD_NUMBER}"
+            echo "Auto-generated date-based version: ${VERSION}"
           fi
+          
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Building version: ${VERSION}"
+          echo "Final version: ${VERSION}"
+
+      - name: Create and push tag
+        if: github.event_name != 'pull_request'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          
+          # Configure git for tagging
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # Create and push the tag
+          git tag "${VERSION}"
+          git push origin "${VERSION}"
+          
+          echo "✅ Created and pushed tag: ${VERSION}"
 
       - name: Build binary
         run: |
@@ -108,22 +139,13 @@ jobs:
     name: Create Release
     needs: build
     runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'  # Only create releases for actual builds
     permissions:
       contents: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Get version
-        id: version
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.version }}"
-          else
-            VERSION="${GITHUB_REF#refs/tags/}"
-          fi
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -140,13 +162,16 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ steps.version.outputs.version }}
-          name: Kilometers CLI ${{ steps.version.outputs.version }}
+          tag_name: ${{ needs.build.outputs.version }}
+          name: Kilometers CLI ${{ needs.build.outputs.version }}
           draft: false
           prerelease: false
           files: release/*
           body: |
-            # Kilometers CLI ${{ steps.version.outputs.version }}
+            # Kilometers CLI ${{ needs.build.outputs.version }}
+            
+            **🗓️ Date-based automatic release** 
+            This version was automatically generated and released when CLI changes were pushed to main.
 
             ## Installation
 
@@ -159,7 +184,8 @@ jobs:
             Download the appropriate binary for your platform below.
 
             ## What's Changed
-            - See [CHANGELOG.md](https://github.com/kilometers-ai/kilometers/blob/main/CHANGELOG.md)
+            - See commit history and [CHANGELOG.md](https://github.com/kilometers-ai/kilometers/blob/main/CHANGELOG.md)
+            - Auto-versioned as **${{ needs.build.outputs.version }}**
 
             ## Checksums
             SHA256 checksums are provided for each binary.
@@ -168,6 +194,7 @@ jobs:
     name: Deploy to CDN
     needs: [build, release]
     runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'  # Only deploy for actual releases
     permissions:
       contents: read
       id-token: write

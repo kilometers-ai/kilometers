@@ -267,6 +267,26 @@ module "static_web_app" {
   tags = local.tags
 }
 
+# Dashboard Static Web App Module
+module "dashboard_static_web_app" {
+  source = "./modules/static_web_app"
+
+  static_web_app_name = "stapp-${local.project_name}-dashboard-${local.environment}-${local.resource_suffix}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  sku_tier            = var.environment == "prod" ? "Standard" : "Free"
+  sku_size            = var.environment == "prod" ? "Standard" : "Free"
+
+  app_settings = {
+    # Dashboard-specific settings will be added here as needed
+  }
+
+  # Dashboard will be hosted at app.kilometers.ai in production
+  custom_domains = var.environment == "prod" ? ["app.kilometers.ai"] : []
+
+  tags = local.tags
+}
+
 # --- GitHub Service Principal for CI/CD ---
 # Use a data source to look up the existing service principal used by the pipeline
 data "azuread_service_principal" "github_actions" {
@@ -373,6 +393,15 @@ resource "github_actions_secret" "azure_static_web_apps_api_token" {
   depends_on = [module.static_web_app]
 }
 
+# Dashboard Static Web App GitHub Secret
+resource "github_actions_secret" "azure_static_web_apps_dashboard_token" {
+  repository      = data.github_repository.main.name
+  secret_name     = "AZURE_STATIC_WEB_APPS_DASHBOARD_TOKEN"
+  plaintext_value = module.dashboard_static_web_app.api_key
+
+  depends_on = [module.dashboard_static_web_app]
+}
+
 # Marketing Site Environment Variables
 locals {
   marketing_environment_variables = {
@@ -444,7 +473,7 @@ resource "azurerm_dns_cname_record" "app_dev" {
   zone_name           = azurerm_dns_zone.kilometers_ai.name
   resource_group_name = azurerm_resource_group.main.name
   ttl                 = 300
-  record              = azurerm_linux_web_app.api.default_hostname # Update this when dashboard is built
+  record              = module.dashboard_static_web_app.default_host_name
 }
 
 # DNS A record for apex domain (kilometers.ai) - points to static web app

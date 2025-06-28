@@ -125,6 +125,28 @@ output "static_web_app_api_key" {
   sensitive   = true
 }
 
+# Dashboard Static Web App Outputs
+output "dashboard_site_url" {
+  description = "URL of the dashboard site"
+  value       = "https://${module.dashboard_static_web_app.default_host_name}"
+}
+
+output "dashboard_static_web_app_name" {
+  description = "Name of the Dashboard Azure Static Web App"
+  value       = module.dashboard_static_web_app.static_web_app_name
+}
+
+output "dashboard_static_web_app_api_key" {
+  description = "API key for Dashboard Static Web App deployment"
+  value       = module.dashboard_static_web_app.api_key
+  sensitive   = true
+}
+
+output "dashboard_custom_url" {
+  description = "Custom domain URL for the Dashboard application"
+  value       = var.environment == "prod" ? "https://app.kilometers.ai" : "https://app.dev.kilometers.ai"
+}
+
 # GitHub Service Principal Outputs
 output "github_actions_client_id" {
   description = "The Client ID of the GitHub Actions service principal."
@@ -151,8 +173,8 @@ output "deployment_summary" {
     api_url       = "https://${azurerm_linux_web_app.api.default_hostname}"
     health_check  = "https://${azurerm_linux_web_app.api.default_hostname}/health"
     swagger_ui    = "https://${azurerm_linux_web_app.api.default_hostname}/swagger"
-    cli_install   = "curl -sSL https://${module.cli_distribution.storage_account_name}.blob.core.windows.net/install/install.sh | sh"
-    dashboard_url = "https://app.kilometers.ai" # Future
-    marketing_url = "https://kilometers.ai"     # Future
+    cli_install   = "curl -sSL https://get.kilometers.ai/install.sh | sh"
+    dashboard_url = var.environment == "prod" ? "https://app.kilometers.ai" : "https://app.dev.kilometers.ai"
+    marketing_url = "https://kilometers.ai"
   }
 }
