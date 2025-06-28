@@ -222,10 +222,45 @@ Examples:
   km ./my-custom-mcp-server --config config.json
 
 Environment Variables:
-  KILOMETERS_API_URL    API endpoint (default: http://localhost:5194)
-  KILOMETERS_API_KEY    API authentication key
-  KM_DEBUG              Enable debug logging
-  KM_BATCH_SIZE         Events per batch (default: 10)
+  Core Configuration:
+    KILOMETERS_API_URL         API endpoint (default: http://localhost:5194)
+    KILOMETERS_API_KEY         API authentication key
+    KILOMETERS_CUSTOMER_ID     Customer identifier (default: "default")
+    KM_DEBUG                   Enable debug logging
+    KM_BATCH_SIZE              Events per batch (default: 10)
+
+  Advanced Filtering:
+    KM_ENABLE_RISK_DETECTION   Enable client-side risk analysis (true/false)
+    KM_METHOD_WHITELIST        Comma-separated list of MCP methods to capture
+                               Examples: "tools/call,resources/read"
+                                        "tools/*,resources/list"
+    KM_PAYLOAD_SIZE_LIMIT      Maximum payload size in bytes (0 = no limit)
+    KM_HIGH_RISK_ONLY          Only capture high-risk events (true/false)
+    KM_EXCLUDE_PING            Exclude ping messages (default: true)
+
+Configuration Examples:
+  # Basic monitoring
+  km npx @modelcontextprotocol/server-github
+
+  # Risk-focused monitoring (security mode)
+  KM_ENABLE_RISK_DETECTION=true KM_HIGH_RISK_ONLY=true km mcp-server
+
+  # Method-specific monitoring (only file operations)
+  KM_METHOD_WHITELIST="resources/read,resources/write" km mcp-server
+
+  # Bandwidth-conscious monitoring
+  KM_PAYLOAD_SIZE_LIMIT=10240 KM_EXCLUDE_PING=true km mcp-server
+
+  # Enterprise security mode
+  KM_ENABLE_RISK_DETECTION=true \
+  KM_METHOD_WHITELIST="resources/read,tools/call" \
+  KM_PAYLOAD_SIZE_LIMIT=5120 \
+  km mcp-server
+
+Risk Levels:
+  HIGH (75+)     - System file access, admin operations, large payloads
+  MEDIUM (35+)   - Environment files, database queries, sensitive operations  
+  LOW (10+)      - Standard tool usage, list operations, basic prompts
 
 For more information, visit https://docs.kilometers.ai
 `, Version)

@@ -37,21 +37,28 @@ type Event struct {
 	Method    string    `json:"method,omitempty"`
 	Payload   []byte    `json:"payload"`
 	Size      int       `json:"size"`
+	RiskScore int       `json:"risk_score,omitempty"` // Client-side risk assessment
 }
 
 // ProcessWrapper handles the transparent MCP server wrapping
 type ProcessWrapper struct {
-	cmd        *exec.Cmd
-	stdin      io.WriteCloser
-	stdout     io.ReadCloser
-	stderr     io.ReadCloser
-	events     chan Event
-	wg         sync.WaitGroup
-	logger     *log.Logger
-	config     *Config
-	apiClient  *APIClient
-	eventBatch []Event
-	batchMutex sync.Mutex
+	cmd          *exec.Cmd
+	stdin        io.WriteCloser
+	stdout       io.ReadCloser
+	stderr       io.ReadCloser
+	events       chan Event
+	wg           sync.WaitGroup
+	logger       *log.Logger
+	config       *Config
+	apiClient    *APIClient
+	eventBatch   []Event
+	batchMutex   sync.Mutex
+	riskDetector *RiskDetector
+
+	// Filtering statistics
+	totalEvents    int
+	filteredEvents int
+	statsMutex     sync.Mutex
 }
 
 func main() {
@@ -72,11 +79,19 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Validate configuration
+	if err := ValidateConfig(config); err != nil {
+		fmt.Fprintf(os.Stderr, "Invalid configuration: %v\n", err)
+		os.Exit(1)
+	}
+
 	// Initialize logger
 	logger := log.New(os.Stderr, "[km] ", log.LstdFlags)
 	if config.Debug {
 		logger.Printf("Debug mode enabled")
 		logger.Printf("Configuration: API=%s, BatchSize=%d", config.APIEndpoint, config.BatchSize)
+		logger.Printf("Filtering: RiskDetection=%v, MethodWhitelist=%v, PayloadLimit=%d",
+			config.EnableRiskDetection, config.MethodWhitelist, config.PayloadSizeLimit)
 	}
 
 	logger.Printf("Starting Kilometers CLI wrapper for: %v", os.Args[1:])
@@ -108,6 +123,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Print filtering statistics if any filtering was enabled
+	wrapper.printFilteringStats()
+
 	logger.Printf("Process completed successfully")
 }
 
@@ -131,16 +149,20 @@ func NewProcessWrapper(command string, args []string, config *Config, apiClient 
 		return nil, fmt.Errorf("failed to create stderr pipe: %w", err)
 	}
 
+	// Initialize risk detector
+	riskDetector := NewRiskDetector()
+
 	return &ProcessWrapper{
-		cmd:        cmd,
-		stdin:      stdin,
-		stdout:     stdout,
-		stderr:     stderr,
-		events:     make(chan Event, 100), // Buffered channel for events
-		logger:     logger,
-		config:     config,
-		apiClient:  apiClient,
-		eventBatch: make([]Event, 0, config.BatchSize),
+		cmd:          cmd,
+		stdin:        stdin,
+		stdout:       stdout,
+		stderr:       stderr,
+		events:       make(chan Event, 100), // Buffered channel for events
+		logger:       logger,
+		config:       config,
+		apiClient:    apiClient,
+		eventBatch:   make([]Event, 0, config.BatchSize),
+		riskDetector: riskDetector,
 	}, nil
 }
 
@@ -186,29 +208,51 @@ func (pw *ProcessWrapper) monitorStdin() {
 	for scanner.Scan() {
 		line := scanner.Bytes()
 
-		// Parse and capture the request
+		// Parse and potentially capture the request
 		if msg := pw.parseMCPMessage(line); msg != nil {
-			event := Event{
-				ID:        pw.generateEventID(),
-				Timestamp: time.Now(),
-				Direction: "request",
-				Method:    msg.Method,
-				Payload:   line,
-				Size:      len(line),
-			}
+			pw.incrementTotalEvents()
 
-			// Send event to processing channel (non-blocking)
-			select {
-			case pw.events <- event:
-			default:
-				pw.logger.Printf("Warning: Event buffer full, dropping request event")
+			// Apply filtering logic
+			if pw.riskDetector.ShouldCaptureEvent(msg, line, pw.config) {
+				// Calculate risk score for captured events
+				riskScore := pw.riskDetector.AnalyzeEvent(msg, line)
+
+				event := Event{
+					ID:        pw.generateEventID(),
+					Timestamp: time.Now(),
+					Direction: "request",
+					Method:    msg.Method,
+					Payload:   line,
+					Size:      len(line),
+					RiskScore: riskScore,
+				}
+
+				// Log risk information in debug mode
+				if pw.config.Debug {
+					pw.logger.Printf("Captured request: method=%s, risk=%s(%d), size=%d",
+						msg.Method, GetRiskLabel(riskScore), riskScore, len(line))
+				}
+
+				// Send event to processing channel (non-blocking)
+				select {
+				case pw.events <- event:
+				default:
+					pw.logger.Printf("Warning: event buffer full, dropping event")
+				}
+			} else {
+				pw.incrementFilteredEvents()
+				if pw.config.Debug {
+					riskScore := pw.riskDetector.AnalyzeEvent(msg, line)
+					pw.logger.Printf("Filtered request: method=%s, risk=%s(%d), size=%d",
+						msg.Method, GetRiskLabel(riskScore), riskScore, len(line))
+				}
 			}
 		}
 
-		// Forward to wrapped process
+		// Always forward the message (transparency requirement)
 		if _, err := pw.stdin.Write(append(line, '\n')); err != nil {
 			pw.logger.Printf("Error writing to stdin: %v", err)
-			return
+			break
 		}
 	}
 
@@ -217,7 +261,7 @@ func (pw *ProcessWrapper) monitorStdin() {
 	}
 }
 
-// monitorStdout reads from the wrapped process and forwards to os.Stdout while monitoring
+// monitorStdout reads from the wrapped process stdout and forwards to os.Stdout while monitoring
 func (pw *ProcessWrapper) monitorStdout() {
 	defer pw.wg.Done()
 
@@ -225,29 +269,51 @@ func (pw *ProcessWrapper) monitorStdout() {
 	for scanner.Scan() {
 		line := scanner.Bytes()
 
-		// Parse and capture the response
+		// Parse and potentially capture the response
 		if msg := pw.parseMCPMessage(line); msg != nil {
-			event := Event{
-				ID:        pw.generateEventID(),
-				Timestamp: time.Now(),
-				Direction: "response",
-				Method:    msg.Method,
-				Payload:   line,
-				Size:      len(line),
-			}
+			pw.incrementTotalEvents()
 
-			// Send event to processing channel (non-blocking)
-			select {
-			case pw.events <- event:
-			default:
-				pw.logger.Printf("Warning: Event buffer full, dropping response event")
+			// Apply filtering logic
+			if pw.riskDetector.ShouldCaptureEvent(msg, line, pw.config) {
+				// Calculate risk score for captured events
+				riskScore := pw.riskDetector.AnalyzeEvent(msg, line)
+
+				event := Event{
+					ID:        pw.generateEventID(),
+					Timestamp: time.Now(),
+					Direction: "response",
+					Method:    msg.Method,
+					Payload:   line,
+					Size:      len(line),
+					RiskScore: riskScore,
+				}
+
+				// Log risk information in debug mode
+				if pw.config.Debug {
+					pw.logger.Printf("Captured response: method=%s, risk=%s(%d), size=%d",
+						msg.Method, GetRiskLabel(riskScore), riskScore, len(line))
+				}
+
+				// Send event to processing channel (non-blocking)
+				select {
+				case pw.events <- event:
+				default:
+					pw.logger.Printf("Warning: event buffer full, dropping event")
+				}
+			} else {
+				pw.incrementFilteredEvents()
+				if pw.config.Debug {
+					riskScore := pw.riskDetector.AnalyzeEvent(msg, line)
+					pw.logger.Printf("Filtered response: method=%s, risk=%s(%d), size=%d",
+						msg.Method, GetRiskLabel(riskScore), riskScore, len(line))
+				}
 			}
 		}
 
-		// Forward to stdout
+		// Always forward the message (transparency requirement)
 		if _, err := os.Stdout.Write(append(line, '\n')); err != nil {
 			pw.logger.Printf("Error writing to stdout: %v", err)
-			return
+			break
 		}
 	}
 
@@ -346,13 +412,11 @@ func (pw *ProcessWrapper) sendBatch() {
 	// Clear the current batch
 	pw.eventBatch = pw.eventBatch[:0]
 
-	// Send asynchronously to avoid blocking
-	go func() {
-		if err := pw.apiClient.SendEventBatch(batch); err != nil {
-			pw.logger.Printf("Failed to send batch to API: %v", err)
-			// TODO: Implement retry logic or local storage fallback
-		}
-	}()
+	// Send synchronously to ensure completion before process exit
+	if err := pw.apiClient.SendEventBatch(batch); err != nil {
+		pw.logger.Printf("Failed to send batch to API: %v", err)
+		// TODO: Implement retry logic or local storage fallback
+	}
 }
 
 // parseMCPMessage attempts to parse a JSON-RPC message
@@ -381,4 +445,33 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, "Usage: %s <mcp-server-command> [args...]\n", os.Args[0])
 	fmt.Fprintf(os.Stderr, "\nExample: %s npx @modelcontextprotocol/server-github\n", os.Args[0])
 	fmt.Fprintf(os.Stderr, "\nUse --help for more information\n")
+}
+
+// incrementTotalEvents increments the total events counter
+func (pw *ProcessWrapper) incrementTotalEvents() {
+	pw.statsMutex.Lock()
+	defer pw.statsMutex.Unlock()
+	pw.totalEvents++
+}
+
+// incrementFilteredEvents increments the filtered events counter
+func (pw *ProcessWrapper) incrementFilteredEvents() {
+	pw.statsMutex.Lock()
+	defer pw.statsMutex.Unlock()
+	pw.filteredEvents++
+}
+
+// printFilteringStats prints the filtering statistics
+func (pw *ProcessWrapper) printFilteringStats() {
+	pw.statsMutex.Lock()
+	defer pw.statsMutex.Unlock()
+
+	if pw.totalEvents > 0 {
+		filteredRatio := float64(pw.filteredEvents) / float64(pw.totalEvents) * 100
+		pw.logger.Printf("Filtering statistics:")
+		pw.logger.Printf("Total events: %d", pw.totalEvents)
+		pw.logger.Printf("Filtered events: %d (%.2f%%)", pw.filteredEvents, filteredRatio)
+	} else {
+		pw.logger.Printf("No events processed yet")
+	}
 }
