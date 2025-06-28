@@ -55,13 +55,13 @@ type ProcessWrapper struct {
 }
 
 func main() {
+	// Handle built-in commands (version, update, help)
+	if handleCommands() {
+		return
+	}
+
 	if len(os.Args) < 2 {
-		fmt.Fprintf(os.Stderr, "Usage: %s <mcp-server-command> [args...]\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "\nExample: %s npx @modelcontextprotocol/server-github\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "\nEnvironment Variables:\n")
-		fmt.Fprintf(os.Stderr, "  KILOMETERS_API_URL - API endpoint (default: http://localhost:5194)\n")
-		fmt.Fprintf(os.Stderr, "  KILOMETERS_API_KEY - API authentication key\n")
-		fmt.Fprintf(os.Stderr, "  KM_DEBUG           - Enable debug logging\n")
+		printUsage()
 		os.Exit(1)
 	}
 
@@ -373,5 +373,12 @@ func (pw *ProcessWrapper) parseMCPMessage(data []byte) *MCPMessage {
 
 // generateEventID creates a unique event identifier
 func (pw *ProcessWrapper) generateEventID() string {
-	return fmt.Sprintf("%d-%d", time.Now().UnixNano(), pw.cmd.Process.Pid)
+	return fmt.Sprintf("%d-%d", time.Now().UnixNano(), len(pw.eventBatch))
+}
+
+// printUsage prints the basic usage information
+func printUsage() {
+	fmt.Fprintf(os.Stderr, "Usage: %s <mcp-server-command> [args...]\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "\nExample: %s npx @modelcontextprotocol/server-github\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "\nUse --help for more information\n")
 }

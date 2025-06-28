@@ -456,3 +456,21 @@ resource "azurerm_dns_a_record" "apex" {
   ttl                 = 300
   target_resource_id  = module.static_web_app.id
 }
+
+# DNS TXT record for apex domain validation (includes both Google verification and Azure Static Web App validation)
+resource "azurerm_dns_txt_record" "apex_validation" {
+  name                = "@"
+  zone_name           = azurerm_dns_zone.kilometers_ai.name
+  resource_group_name = azurerm_resource_group.main.name
+  ttl                 = 300
+
+  record {
+    value = "google-site-verification=PopzhO77Rj1FgXroseyPyalSOsFbXnQeMLFwZ9jX_aY"
+  }
+
+  record {
+    value = "_voe97n94ae4cdwy1zf9n9i5hp09vtqd"
+  }
+
+  tags = local.tags
+}

@@ -7,7 +7,7 @@ set -e
 # Configuration
 BINARY_NAME="km"
 GITHUB_REPO="kilometers-ai/kilometers"
-CDN_BASE="https://get.kilometers.ai"
+CDN_BASE="https://stkmclib57e3ec7.blob.core.windows.net"
 INSTALL_DIR="/usr/local/bin"
 
 # Colors for output
