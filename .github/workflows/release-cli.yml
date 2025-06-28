@@ -18,7 +18,7 @@ on:
         required: true
 
 env:
-  GO_VERSION: "1.21"
+  GO_VERSION: "1.24.4"
   BINARY_NAME: "km"
 
 jobs:
@@ -59,8 +59,11 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="${{ github.event.inputs.version }}"
-          else
+          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
             VERSION="${GITHUB_REF#refs/tags/}"
+          else
+            # For main branch pushes, use commit SHA
+            VERSION="main-${GITHUB_SHA::8}"
           fi
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "Building version: ${VERSION}"
@@ -70,17 +73,28 @@ jobs:
           cd cli
           VERSION="${{ steps.version.outputs.version }}"
           BINARY="km-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.suffix }}"
+          BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-          # Build with version info
+          # Create dist directory
+          mkdir -p dist
+
+          # Build with version info and build metadata
           GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} \
-            go build -ldflags="-s -w -X main.Version=${VERSION}" \
+            go build -ldflags="-s -w -X main.Version=${VERSION} -X main.BuildTime=${BUILD_TIME}" \
             -o "dist/${BINARY}" .
 
-          # Create checksums
+          # Verify binary was created
+          if [ ! -f "dist/${BINARY}" ]; then
+            echo "ERROR: Binary not created: ${BINARY}"
+            exit 1
+          fi
+
+          # Create checksums and verify
           cd dist
           sha256sum "${BINARY}" > "${BINARY}.sha256"
+          sha256sum -c "${BINARY}.sha256"
 
-          echo "Built: ${BINARY}"
+          echo "✅ Built: ${BINARY} ($(stat -c%s "${BINARY}" | numfmt --to=iec))"
           ls -la
 
       - name: Upload artifacts
@@ -191,22 +205,53 @@ jobs:
           VERSION="${{ needs.build.outputs.version }}"
           STORAGE_ACCOUNT="${{ steps.storage.outputs.account }}"
 
-          # Create version directory
-          az storage blob upload-batch \
-            --auth-mode login \
-            --account-name "${STORAGE_ACCOUNT}" \
-            --destination "releases/${VERSION}" \
-            --source artifacts \
-            --pattern "*/km-*"
+          if [ -z "$STORAGE_ACCOUNT" ]; then
+            echo "ERROR: Storage account not found"
+            exit 1
+          fi
 
-          # Update latest directory
-          az storage blob upload-batch \
-            --auth-mode login \
-            --account-name "${STORAGE_ACCOUNT}" \
-            --destination "releases/latest" \
-            --source artifacts \
-            --pattern "*/km-*" \
-            --overwrite
+          echo "Uploading to storage account: $STORAGE_ACCOUNT"
+
+          # Upload version directory with retry logic
+          for attempt in 1 2 3; do
+            if az storage blob upload-batch \
+              --auth-mode login \
+              --account-name "${STORAGE_ACCOUNT}" \
+              --destination "releases/${VERSION}" \
+              --source artifacts \
+              --pattern "*/km-*" \
+              --output table; then
+              echo "✅ Version upload successful on attempt $attempt"
+              break
+            else
+              echo "❌ Version upload failed on attempt $attempt"
+              if [ $attempt -eq 3 ]; then
+                exit 1
+              fi
+              sleep 5
+            fi
+          done
+
+          # Update latest directory with retry logic
+          for attempt in 1 2 3; do
+            if az storage blob upload-batch \
+              --auth-mode login \
+              --account-name "${STORAGE_ACCOUNT}" \
+              --destination "releases/latest" \
+              --source artifacts \
+              --pattern "*/km-*" \
+              --overwrite \
+              --output table; then
+              echo "✅ Latest upload successful on attempt $attempt"
+              break
+            else
+              echo "❌ Latest upload failed on attempt $attempt"
+              if [ $attempt -eq 3 ]; then
+                exit 1
+              fi
+              sleep 5
+            fi
+          done
 
       - name: Upload install scripts
         run: |

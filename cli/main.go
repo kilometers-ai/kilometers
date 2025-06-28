@@ -9,9 +9,93 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"runtime"
+	"runtime/debug"
 	"sync"
 	"time"
 )
+
+// Version information (injected at build time)
+var (
+	Version   = "dev"     // Overridden by ldflags
+	BuildTime = "unknown" // Overridden by ldflags
+)
+
+// handleCommands processes built-in commands before MCP wrapping
+func handleCommands() bool {
+	if len(os.Args) < 2 {
+		return false
+	}
+
+	switch os.Args[1] {
+	case "--version", "-v", "version":
+		printVersion()
+		return true
+	case "--help", "-h", "help":
+		printHelp()
+		return true
+	case "update":
+		handleUpdate()
+		return true
+	}
+
+	return false
+}
+
+// printVersion displays version information
+func printVersion() {
+	fmt.Printf("Kilometers CLI %s\n", Version)
+	fmt.Printf("Build time: %s\n", BuildTime)
+	fmt.Printf("Go version: %s\n", goVersion())
+	fmt.Printf("Platform: %s/%s\n", runtime.GOOS, runtime.GOARCH)
+}
+
+// printHelp displays comprehensive help information
+func printHelp() {
+	fmt.Printf("Kilometers CLI %s - Transparent AI monitoring\n\n", Version)
+
+	fmt.Println("USAGE:")
+	fmt.Printf("  %s <mcp-server-command> [args...]\n\n", os.Args[0])
+
+	fmt.Println("EXAMPLES:")
+	fmt.Printf("  %s npx @modelcontextprotocol/server-github\n", os.Args[0])
+	fmt.Printf("  %s python -m mcp_server_git\n", os.Args[0])
+	fmt.Printf("  %s uvx mcp-server-filesystem\n\n", os.Args[0])
+
+	fmt.Println("BUILT-IN COMMANDS:")
+	fmt.Println("  --version, -v     Show version information")
+	fmt.Println("  --help, -h        Show this help message")
+	fmt.Println("  update           Check for and install updates")
+
+	fmt.Println("\nENVIRONMENT VARIABLES:")
+	fmt.Println("  KILOMETERS_API_KEY    API key for event upload")
+	fmt.Println("  KILOMETERS_API_URL    Custom API endpoint")
+	fmt.Println("  KM_DEBUG             Enable debug logging (true/false)")
+	fmt.Println("  KM_BATCH_SIZE        Event batch size (default: 10)")
+	fmt.Println("  KM_DISABLE_UPLOAD    Disable API uploads (true/false)")
+
+	fmt.Println("\nSUPPORT:")
+	fmt.Println("  Dashboard: https://app.kilometers.ai")
+	fmt.Println("  Docs:      https://docs.kilometers.ai")
+	fmt.Println("  Issues:    https://github.com/kilometers-ai/kilometers/issues")
+}
+
+// goVersion returns the Go version used to build the binary
+func goVersion() string {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		return info.GoVersion
+	}
+	return "unknown"
+}
+
+// handleUpdate handles the update command (placeholder)
+func handleUpdate() {
+	fmt.Printf("Kilometers CLI %s\n", Version)
+	fmt.Println("Update functionality coming soon!")
+	fmt.Println("")
+	fmt.Println("For now, download the latest version from:")
+	fmt.Println("  https://github.com/kilometers-ai/kilometers/releases/latest")
+}
 
 // MCP JSON-RPC message structure
 type MCPMessage struct {
