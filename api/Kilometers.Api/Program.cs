@@ -91,6 +91,22 @@ if (!builder.Environment.IsDevelopment() && !string.IsNullOrEmpty(connectionStri
     healthChecks.AddNpgSql(connectionString);
 }
 
+// Add HTTP request/response logging for development
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddHttpLogging(logging =>
+    {
+        logging.LoggingFields = Microsoft.AspNetCore.HttpLogging.HttpLoggingFields.All;
+        logging.RequestHeaders.Add("Origin");
+        logging.RequestHeaders.Add("Referer");
+        logging.RequestHeaders.Add("User-Agent");
+        logging.ResponseHeaders.Add("Access-Control-Allow-Origin");
+        logging.MediaTypeOptions.AddText("application/json");
+        logging.RequestBodyLogLimit = 4096;
+        logging.ResponseBodyLogLimit = 4096;
+    });
+}
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
@@ -98,6 +114,7 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    app.UseHttpLogging(); // Enable HTTP logging in development
 }
 
 app.UseHttpsRedirection();
@@ -129,23 +146,24 @@ if (!app.Environment.IsDevelopment())
 }
 
 // API endpoints
-app.MapGet("/", () => new
+app.MapGet("/", (ILogger<Program> logger) =>
 {
-    service = "Kilometers.Api",
-    version = "1.0.0",
-    environment = app.Environment.EnvironmentName,
-    timestamp = DateTime.UtcNow
+    logger.LogInformation("Service info endpoint called");
+    return new
+    {
+        service = "Kilometers.Api",
+        version = "1.0.0",
+        environment = app.Environment.EnvironmentName,
+        timestamp = DateTime.UtcNow
+    };
 });
 
-// app.MapGet("/health", (IEventStore eventStore) => new
-// {
-//     status = "healthy",
-//     timestamp = DateTime.UtcNow,
-//     environment = app.Environment.EnvironmentName
-// });
+// Note: Health check endpoint is provided by ASP.NET Core at /health via app.MapHealthChecks("/health")
 
 app.MapPost("/api/events", async (MpcEventDto eventDto, IEventStore eventStore, ILogger<Program> logger) =>
 {
+    logger.LogInformation("Received single event {EventId} from customer {CustomerId} - {Direction} {Method}",
+        eventDto.Id, eventDto.CustomerId ?? "default", eventDto.Direction, eventDto.Method ?? "unknown");
     try
     {
         // Convert base64 payload to bytes
@@ -174,7 +192,7 @@ app.MapPost("/api/events", async (MpcEventDto eventDto, IEventStore eventStore, 
                 ProcessedAt = DateTime.UtcNow,
                 Source = "CLI",
                 Version = "1.0.0",
-                RiskScore = CalculateRiskScore(eventDto),
+                RiskScore = eventDto.RiskScore ?? CalculateRiskScore(eventDto),
                 CostEstimate = CalculateCostEstimate(eventDto)
             }
         };
@@ -193,6 +211,8 @@ app.MapPost("/api/events", async (MpcEventDto eventDto, IEventStore eventStore, 
 
 app.MapPost("/api/events/batch", async (EventBatchDto batch, IEventStore eventStore, ILogger<Program> logger) =>
 {
+    logger.LogInformation("Received event batch with {Count} events from CLI version {CliVersion} at {BatchTimestamp}",
+        batch.Events.Count, batch.CliVersion ?? "unknown", batch.BatchTimestamp ?? "unknown");
     try
     {
         var events = batch.Events.Select(dto =>
@@ -222,8 +242,8 @@ app.MapPost("/api/events/batch", async (EventBatchDto batch, IEventStore eventSt
                 {
                     ProcessedAt = DateTime.UtcNow,
                     Source = "CLI",
-                    Version = "1.0.0",
-                    RiskScore = CalculateRiskScore(dto),
+                    Version = batch.CliVersion ?? "1.0.0",
+                    RiskScore = dto.RiskScore ?? CalculateRiskScore(dto),
                     CostEstimate = CalculateCostEstimate(dto)
                 }
             };
@@ -241,11 +261,13 @@ app.MapPost("/api/events/batch", async (EventBatchDto batch, IEventStore eventSt
     }
 });
 
-app.MapGet("/api/activity", async (IEventStore eventStore, string? customerId = "default", int limit = 10) =>
+app.MapGet("/api/activity", async (IEventStore eventStore, ILogger<Program> logger, string? customerId = "default", int limit = 10) =>
 {
+    logger.LogInformation("Activity endpoint called with customerId: {CustomerId}, limit: {Limit}", customerId, limit);
     try
     {
         var events = await eventStore.GetRecentAsync(customerId ?? "default", limit);
+        logger.LogInformation("Retrieved {Count} events for customer {CustomerId}", events.Count, customerId);
 
         var activity = events.Select(e => new
         {
@@ -265,19 +287,24 @@ app.MapGet("/api/activity", async (IEventStore eventStore, string? customerId = 
     }
     catch (Exception ex)
     {
+        logger.LogError(ex, "Failed to retrieve activity for customer {CustomerId}: {ErrorMessage}", customerId, ex.Message);
         return Results.BadRequest(new { error = ex.Message });
     }
 });
 
-app.MapGet("/api/stats", async (IEventStore eventStore, string? customerId = "default") =>
+app.MapGet("/api/stats", async (IEventStore eventStore, ILogger<Program> logger, string? customerId = "default") =>
 {
+    logger.LogInformation("Stats endpoint called with customerId: {CustomerId}", customerId);
     try
     {
         var stats = await eventStore.GetStatsAsync(customerId ?? "default");
+        logger.LogInformation("Retrieved stats for customer {CustomerId}: {TotalEvents} events, ${TotalCost} cost",
+            customerId, stats.TotalEvents, stats.TotalCost);
         return Results.Ok(stats);
     }
     catch (Exception ex)
     {
+        logger.LogError(ex, "Failed to retrieve stats for customer {CustomerId}: {ErrorMessage}", customerId, ex.Message);
         return Results.BadRequest(new { error = ex.Message });
     }
 });
@@ -326,9 +353,13 @@ public record MpcEventDto(
     string Direction,
     string? Method,
     string Payload,
-    int Size);
+    int Size,
+    int? RiskScore = null);
 
-public record EventBatchDto(List<MpcEventDto> Events);
+public record EventBatchDto(
+    List<MpcEventDto> Events,
+    string? CliVersion = null,
+    string? BatchTimestamp = null);
 
 public record EventMetadata
 {
