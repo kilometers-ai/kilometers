@@ -7,17 +7,20 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
 // EventDto represents the structure expected by the API
 type EventDto struct {
-	ID        string `json:"id"`
-	Timestamp string `json:"timestamp"`
-	Direction string `json:"direction"`
-	Method    string `json:"method,omitempty"`
-	Payload   string `json:"payload"` // Base64 encoded
-	Size      int    `json:"size"`
+	ID         string `json:"id"`
+	Timestamp  string `json:"timestamp"`
+	CustomerId string `json:"customerId,omitempty"`
+	Direction  string `json:"direction"`
+	Method     string `json:"method,omitempty"`
+	Payload    string `json:"payload"` // Base64 encoded
+	Size       int    `json:"size"`
+	RiskScore  int    `json:"riskScore,omitempty"` // Client-side risk assessment
 }
 
 // EventBatchDto represents a batch of events for the API
@@ -31,20 +34,34 @@ type EventBatchDto struct {
 type APIClient struct {
 	endpoint   string
 	apiKey     string
+	customerId string
 	httpClient *http.Client
 	logger     *log.Logger
 }
 
 // NewAPIClient creates a new API client
 func NewAPIClient(config *Config, logger *log.Logger) *APIClient {
+	customerId := getCustomerId()
 	return &APIClient{
-		endpoint: config.APIEndpoint,
-		apiKey:   config.APIKey,
+		endpoint:   config.APIEndpoint,
+		apiKey:     config.APIKey,
+		customerId: customerId,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
 		logger: logger,
 	}
+}
+
+// getCustomerId retrieves or generates a customer ID
+func getCustomerId() string {
+	// Try environment variable first
+	if customerId := os.Getenv("KILOMETERS_CUSTOMER_ID"); customerId != "" {
+		return customerId
+	}
+
+	// Fallback to default for development
+	return "default"
 }
 
 // SendEvent sends a single event to the API
@@ -80,24 +97,28 @@ func (c *APIClient) SendEvent(event Event) error {
 	return nil
 }
 
-// SendEventBatch sends multiple events in a single request
+// SendEventBatch sends multiple events to the API in a single batch
 func (c *APIClient) SendEventBatch(events []Event) error {
 	if len(events) == 0 {
 		return nil
 	}
 
-	dtos := make([]EventDto, len(events))
+	c.logger.Printf("Attempting to send batch of %d events to %s/api/events/batch", len(events), c.endpoint)
+
+	// Convert events to DTOs
+	eventDtos := make([]EventDto, len(events))
 	for i, event := range events {
-		dtos[i] = c.eventToDTO(event)
+		eventDtos[i] = c.eventToDTO(event)
 	}
 
-	batch := EventBatchDto{
-		Events:         dtos,
-		CliVersion:     "1.0.0",
+	// Create batch DTO
+	batchDto := EventBatchDto{
+		Events:         eventDtos,
+		CliVersion:     "1.0.0", // TODO: Make this configurable
 		BatchTimestamp: time.Now().Format(time.RFC3339),
 	}
 
-	jsonData, err := json.Marshal(batch)
+	jsonData, err := json.Marshal(batchDto)
 	if err != nil {
 		return fmt.Errorf("failed to marshal batch: %w", err)
 	}
@@ -114,47 +135,55 @@ func (c *APIClient) SendEventBatch(events []Event) error {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		c.logger.Printf("HTTP request failed: %v", err)
 		return fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
+
+	c.logger.Printf("API response: HTTP %d", resp.StatusCode)
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("API returned status %d", resp.StatusCode)
 	}
 
-	c.logger.Printf("Successfully sent batch of %d events to API", len(events))
+	c.logger.Printf("✅ Successfully sent batch of %d events to API", len(events))
 	return nil
 }
 
-// TestConnection tests if the API is reachable
+// TestConnection tests the API connection
 func (c *APIClient) TestConnection() error {
 	req, err := http.NewRequest("GET", c.endpoint+"/health", nil)
 	if err != nil {
-		return fmt.Errorf("failed to create health check request: %w", err)
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	if c.apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.apiKey)
 	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to reach API: %w", err)
+		return fmt.Errorf("failed to connect: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("API health check failed with status %d", resp.StatusCode)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("health check failed with status %d", resp.StatusCode)
 	}
 
-	c.logger.Printf("API connection test successful")
 	return nil
 }
 
-// eventToDTO converts an Event to EventDto with proper base64 encoding
+// eventToDTO converts an Event to EventDto
 func (c *APIClient) eventToDTO(event Event) EventDto {
 	return EventDto{
-		ID:        event.ID,
-		Timestamp: event.Timestamp.Format(time.RFC3339),
-		Direction: event.Direction,
-		Method:    event.Method,
-		Payload:   base64.StdEncoding.EncodeToString(event.Payload),
-		Size:      event.Size,
+		ID:         event.ID,
+		Timestamp:  event.Timestamp.Format(time.RFC3339),
+		CustomerId: c.customerId,
+		Direction:  event.Direction,
+		Method:     event.Method,
+		Payload:    base64.StdEncoding.EncodeToString(event.Payload),
+		Size:       event.Size,
+		RiskScore:  event.RiskScore,
 	}
 }
