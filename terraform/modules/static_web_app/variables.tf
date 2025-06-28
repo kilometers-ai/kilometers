@@ -41,8 +41,15 @@ variable "app_settings" {
   default     = {}
 }
 
+variable "custom_domains" {
+  description = "List of custom domains for the Static Web App (optional)"
+  type        = list(string)
+  default     = []
+}
+
+# Keep backward compatibility
 variable "custom_domain" {
-  description = "Custom domain for the Static Web App (optional)"
+  description = "Single custom domain for the Static Web App (optional, use custom_domains instead)"
   type        = string
   default     = ""
 }
@@ -51,4 +58,4 @@ variable "tags" {
   description = "Tags to be applied to the Static Web App"
   type        = map(string)
   default     = {}
-} 
+}

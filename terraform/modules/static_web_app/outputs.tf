@@ -18,3 +18,9 @@ output "api_key" {
   value       = azurerm_static_web_app.marketing.api_key
   sensitive   = true
 }
+
+# Alias for backward compatibility
+output "id" {
+  description = "ID of the Azure Static Web App (alias for static_web_app_id)"
+  value       = azurerm_static_web_app.marketing.id
+}

@@ -261,8 +261,8 @@ module "static_web_app" {
     # Future: Add any required app settings here
   }
 
-  # Prepared for custom domain (kilometers.ai)
-  custom_domain = var.environment == "prod" ? "kilometers.ai" : ""
+  # Custom domains - both apex and www for all environments (for testing)
+  custom_domains = ["www.kilometers.ai", "kilometers.ai"]
 
   tags = local.tags
 }
@@ -406,3 +406,63 @@ resource "github_actions_secret" "marketing_env_vars" {
 
 # Data source for current Azure config
 data "azurerm_client_config" "current" {}
+
+# DNS Zone for kilometers.ai domain
+resource "azurerm_dns_zone" "kilometers_ai" {
+  name                = "kilometers.ai"
+  resource_group_name = azurerm_resource_group.main.name
+  tags                = local.tags
+}
+
+# DNS CNAME records for subdomains
+resource "azurerm_dns_cname_record" "www" {
+  name                = "www"
+  zone_name           = azurerm_dns_zone.kilometers_ai.name
+  resource_group_name = azurerm_resource_group.main.name
+  ttl                 = 300
+  record              = module.static_web_app.default_host_name
+}
+
+resource "azurerm_dns_cname_record" "get" {
+  name                = "get"
+  zone_name           = azurerm_dns_zone.kilometers_ai.name
+  resource_group_name = azurerm_resource_group.main.name
+  ttl                 = 300
+  record              = module.cli_distribution.cdn_endpoint_hostname
+}
+
+resource "azurerm_dns_cname_record" "api_dev" {
+  name                = "api.dev"
+  zone_name           = azurerm_dns_zone.kilometers_ai.name
+  resource_group_name = azurerm_resource_group.main.name
+  ttl                 = 300
+  record              = azurerm_linux_web_app.api.default_hostname
+}
+
+resource "azurerm_dns_cname_record" "app_dev" {
+  name                = "app.dev"
+  zone_name           = azurerm_dns_zone.kilometers_ai.name
+  resource_group_name = azurerm_resource_group.main.name
+  ttl                 = 300
+  record              = azurerm_linux_web_app.api.default_hostname # Update this when dashboard is built
+}
+
+# DNS A record for apex domain (kilometers.ai) - points to static web app
+resource "azurerm_dns_a_record" "apex" {
+  count               = var.environment == "prod" ? 1 : 0
+  name                = "@"
+  zone_name           = azurerm_dns_zone.kilometers_ai.name
+  resource_group_name = azurerm_resource_group.main.name
+  ttl                 = 300
+  target_resource_id  = module.static_web_app.id
+}
+
+# For dev environment, create CNAME alias record instead 
+resource "azurerm_dns_cname_record" "apex_dev" {
+  count               = var.environment == "dev" ? 1 : 0
+  name                = "@"
+  zone_name           = azurerm_dns_zone.kilometers_ai.name
+  resource_group_name = azurerm_resource_group.main.name
+  ttl                 = 300
+  record              = module.static_web_app.default_host_name
+}
