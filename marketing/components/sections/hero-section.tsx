@@ -8,7 +8,8 @@ import { getAppUrl, getAuthUrl } from "@/lib/app-redirect";
 
 export function HeroSection() {
   const [copied, setCopied] = useState(false);
-  const installCommand = "curl -sSL https://get.kilometers.ai | sh";
+  const installCommand =
+    "curl -sSL https://raw.githubusercontent.com/kilometers-ai/kilometers/main/scripts/install.sh | sh";
 
   const copyToClipboard = async () => {
     await navigator.clipboard.writeText(installCommand);

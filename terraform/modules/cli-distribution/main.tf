@@ -43,6 +43,13 @@ resource "azurerm_storage_container" "install" {
   container_access_type = "blob" # Public read access
 }
 
+# Container for CLI binary releases
+resource "azurerm_storage_container" "releases" {
+  name                  = "releases"
+  storage_account_id    = azurerm_storage_account.cli_distribution.id
+  container_access_type = "blob" # Public read access
+}
+
 # CDN Profile for global distribution
 resource "azurerm_cdn_profile" "cli_distribution" {
   name                = "cdnp-kilometers-cli-${var.environment}"

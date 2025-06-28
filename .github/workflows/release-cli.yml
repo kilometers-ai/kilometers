@@ -238,6 +238,7 @@ jobs:
             else
               echo "❌ Version upload failed on attempt $attempt"
               if [ $attempt -eq 3 ]; then
+                echo "ERROR: Releases container may not exist - check Terraform CLI distribution module"
                 exit 1
               fi
               sleep 5
@@ -259,6 +260,7 @@ jobs:
             else
               echo "❌ Latest upload failed on attempt $attempt"
               if [ $attempt -eq 3 ]; then
+                echo "ERROR: Releases container may not exist - check Terraform CLI distribution module"
                 exit 1
               fi
               sleep 5
@@ -306,7 +308,7 @@ jobs:
             az storage blob upload \
               --auth-mode login \
               --account-name "${STORAGE_ACCOUNT}" \
-              --container-name '$web' \
+              --container-name '\$web' \
               --name "index.html" \
               --file "scripts/index.html" \
               --content-type "text/html" \
