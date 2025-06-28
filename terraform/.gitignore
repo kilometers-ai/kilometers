@@ -25,4 +25,5 @@ override.tf.json
 Thumbs.db
 
 # Environment-specific configuration
-/config/
+/config/*.tfvars
+!/config/*.tfvars.example
