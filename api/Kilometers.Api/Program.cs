@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 var builder = WebApplication.CreateBuilder(args);
 
-// Add Azure Key Vault configuration in production
+// Add Azure Key Vault configuration in production.
 if (builder.Environment.IsProduction())
 {
     var keyVaultUri = builder.Configuration["KeyVault:VaultUri"];
