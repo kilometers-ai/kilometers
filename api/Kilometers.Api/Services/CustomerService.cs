@@ -35,9 +35,16 @@ public class CustomerService : ICustomerService
         }
 
         // Create customer from terraform key
+        // Use a deterministic hash based on API key to ensure consistency
+        var deterministicHash = Convert.ToBase64String(
+            System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes($"km_salt_{apiKey}")
+            )
+        );
+
         var customer = new Customer
         {
-            ApiKeyHash = BCrypt.Net.BCrypt.HashPassword(apiKey), // Hash for storage
+            ApiKeyHash = deterministicHash, // Consistent hash for storage/retrieval
             ApiKeyPrefix = $"km_{apiKey.Substring(0, Math.Min(8, apiKey.Length))}",
             Email = "terraform@kilometers.ai",
             Organization = "Terraform Bootstrap",
