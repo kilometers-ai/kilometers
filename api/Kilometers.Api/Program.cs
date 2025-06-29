@@ -1,12 +1,27 @@
-// Kilometers.ai API - CI/CD Pipeline Test
 using Microsoft.EntityFrameworkCore;
 using Azure.Identity;
 using Azure.Extensions.AspNetCore.Configuration.Secrets;
-using Kilometers.Api.Domain.Events;
 using Kilometers.Api.Domain.Services;
 using Kilometers.Api.Infrastructure.EventStore;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
+using Microsoft.Extensions.Options;
+using System.Text.Encodings.Web;
+using Kilometers.Api.Auth;
+using Kilometers.Api.Services;
+using Kilometers.Api.Models;
+using Kilometers.Api.Domain.Events;
+
+
+
+
+
+
+
+
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add Azure Key Vault configuration in production.
@@ -29,6 +44,15 @@ if (builder.Environment.IsProduction())
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// 🔐 ADD API KEY AUTHENTICATION
+builder.Services.AddAuthentication(ApiKeyAuthenticationSchemeOptions.DefaultScheme)
+    .AddScheme<ApiKeyAuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(
+        ApiKeyAuthenticationSchemeOptions.DefaultScheme,
+        options => { });
+
+builder.Services.AddAuthorization();
+builder.Services.AddScoped<ICustomerService, CustomerService>();
 
 // Add Application Insights telemetry
 if (builder.Environment.IsProduction())
@@ -120,6 +144,10 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors();
 
+// 🔐 USE AUTHENTICATION MIDDLEWARE
+app.UseAuthentication();
+app.UseAuthorization();
+
 // Health check endpoints
 app.MapHealthChecks("/health");
 
@@ -158,48 +186,44 @@ app.MapGet("/", (ILogger<Program> logger) =>
     };
 });
 
-// Note: Health check endpoint is provided by ASP.NET Core at /health via app.MapHealthChecks("/health")
-
-app.MapPost("/api/events", async (MpcEventDto eventDto, IEventStore eventStore, ILogger<Program> logger) =>
+// 🔐 PROTECTED: Single Event Endpoint - Customer from Bearer token
+app.MapPost("/api/events", [Authorize] async (
+    MpcEventDto eventDto,
+    IEventStore eventStore,
+    ILogger<Program> logger,
+    ClaimsPrincipal user) =>
 {
-    logger.LogInformation("Received single event {EventId} from customer {CustomerId} - {Direction} {Method}",
-        eventDto.Id, eventDto.CustomerId ?? "default", eventDto.Direction, eventDto.Method ?? "unknown");
+    var customerApiKeyHash = user.GetApiKeyHash();
+    var customerPrefix = user.GetApiKeyPrefix();
+
+    logger.LogInformation("Received single event {EventId} from customer {CustomerPrefix} - {Direction} {Method}",
+        eventDto.Id, customerPrefix, eventDto.Direction, eventDto.Method ?? "unknown");
+
     try
     {
-        // Convert base64 payload to bytes
-        byte[] payloadBytes;
-        try
-        {
-            payloadBytes = Convert.FromBase64String(eventDto.Payload);
-        }
-        catch (FormatException)
-        {
-            logger.LogWarning("Invalid base64 payload for event {EventId}, treating as UTF8 text", eventDto.Id);
-            payloadBytes = System.Text.Encoding.UTF8.GetBytes(eventDto.Payload);
-        }
-
         var mpcEvent = new MpcEvent
         {
             Id = eventDto.Id,
             Timestamp = eventDto.Timestamp,
-            CustomerId = eventDto.CustomerId ?? "default",
+            CustomerId = customerApiKeyHash!, // From authenticated user
             Direction = eventDto.Direction,
             Method = eventDto.Method,
-            Payload = payloadBytes,
+            Payload = eventDto.Payload, // Already byte[] in domain DTO
             Size = eventDto.Size,
             Metadata = new EventMetadata
             {
                 ProcessedAt = DateTime.UtcNow,
                 Source = "CLI",
                 Version = "1.0.0",
-                RiskScore = eventDto.RiskScore ?? CalculateRiskScore(eventDto),
+                RiskScore = CalculateRiskScore(eventDto),
                 CostEstimate = CalculateCostEstimate(eventDto)
             }
         };
 
         await eventStore.AppendAsync(mpcEvent);
 
-        logger.LogInformation("Event {EventId} processed successfully for customer {CustomerId}", eventDto.Id, mpcEvent.CustomerId);
+        logger.LogInformation("Event {EventId} processed successfully for customer {CustomerPrefix}",
+            eventDto.Id, customerPrefix);
         return Results.Ok(new { success = true, eventId = eventDto.Id });
     }
     catch (Exception ex)
@@ -209,41 +233,38 @@ app.MapPost("/api/events", async (MpcEventDto eventDto, IEventStore eventStore, 
     }
 });
 
-app.MapPost("/api/events/batch", async (EventBatchDto batch, IEventStore eventStore, ILogger<Program> logger) =>
+// 🔐 PROTECTED: Batch Events Endpoint - Customer from Bearer token
+app.MapPost("/api/events/batch", [Authorize] async (
+    MpcEventBatchDto batch,
+    IEventStore eventStore,
+    ILogger<Program> logger,
+    ClaimsPrincipal user) =>
 {
-    logger.LogInformation("Received event batch with {Count} events from CLI version {CliVersion} at {BatchTimestamp}",
-        batch.Events.Count, batch.CliVersion ?? "unknown", batch.BatchTimestamp ?? "unknown");
+    var customerApiKeyHash = user.GetApiKeyHash();
+    var customerPrefix = user.GetApiKeyPrefix();
+
+    logger.LogInformation("Received event batch with {Count} events from customer {CustomerPrefix}, CLI version {CliVersion}",
+        batch.Events.Count, customerPrefix, batch.CliVersion ?? "unknown");
+
     try
     {
         var events = batch.Events.Select(dto =>
         {
-            // Convert base64 payload to bytes with fallback
-            byte[] payloadBytes;
-            try
-            {
-                payloadBytes = Convert.FromBase64String(dto.Payload);
-            }
-            catch (FormatException)
-            {
-                logger.LogWarning("Invalid base64 payload for event {EventId}, treating as UTF8 text", dto.Id);
-                payloadBytes = System.Text.Encoding.UTF8.GetBytes(dto.Payload);
-            }
-
             return new MpcEvent
             {
                 Id = dto.Id,
                 Timestamp = dto.Timestamp,
-                CustomerId = dto.CustomerId ?? "default",
+                CustomerId = customerApiKeyHash!, // From authenticated user
                 Direction = dto.Direction,
                 Method = dto.Method,
-                Payload = payloadBytes,
+                Payload = dto.Payload, // Already byte[] in domain DTO
                 Size = dto.Size,
                 Metadata = new EventMetadata
                 {
                     ProcessedAt = DateTime.UtcNow,
                     Source = "CLI",
-                    Version = batch.CliVersion ?? "1.0.0",
-                    RiskScore = dto.RiskScore ?? CalculateRiskScore(dto),
+                    Version = batch.CliVersion,
+                    RiskScore = CalculateRiskScore(dto),
                     CostEstimate = CalculateCostEstimate(dto)
                 }
             };
@@ -251,7 +272,8 @@ app.MapPost("/api/events/batch", async (EventBatchDto batch, IEventStore eventSt
 
         await eventStore.AppendBatchAsync(events);
 
-        logger.LogInformation("Batch of {Count} events processed successfully", events.Count);
+        logger.LogInformation("Batch of {Count} events processed successfully for customer {CustomerPrefix}",
+            events.Count, customerPrefix);
         return Results.Ok(new { success = true, eventsProcessed = events.Count });
     }
     catch (Exception ex)
@@ -261,13 +283,24 @@ app.MapPost("/api/events/batch", async (EventBatchDto batch, IEventStore eventSt
     }
 });
 
-app.MapGet("/api/activity", async (IEventStore eventStore, ILogger<Program> logger, string? customerId = "default", int limit = 10) =>
+// 🔐 PROTECTED: Activity Endpoint - Customer from Bearer token (NO customerId parameter)
+app.MapGet("/api/activity", [Authorize] async (
+    IEventStore eventStore,
+    ILogger<Program> logger,
+    ClaimsPrincipal user,
+    int limit = 10) =>
 {
-    logger.LogInformation("Activity endpoint called with customerId: {CustomerId}, limit: {Limit}", customerId, limit);
+    var customerApiKeyHash = user.GetApiKeyHash();
+    var customerPrefix = user.GetApiKeyPrefix();
+
+    logger.LogInformation("Activity endpoint called for customer {CustomerPrefix}, limit: {Limit}",
+        customerPrefix, limit);
+
     try
     {
-        var events = await eventStore.GetRecentAsync(customerId ?? "default", limit);
-        logger.LogInformation("Retrieved {Count} events for customer {CustomerId}", events.Count, customerId);
+        var events = await eventStore.GetRecentAsync(customerApiKeyHash!, limit);
+        logger.LogInformation("Retrieved {Count} events for customer {CustomerPrefix}",
+            events.Count, customerPrefix);
 
         var activity = events.Select(e => new
         {
@@ -287,26 +320,48 @@ app.MapGet("/api/activity", async (IEventStore eventStore, ILogger<Program> logg
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Failed to retrieve activity for customer {CustomerId}: {ErrorMessage}", customerId, ex.Message);
+        logger.LogError(ex, "Failed to retrieve activity for customer {CustomerPrefix}: {ErrorMessage}",
+            customerPrefix, ex.Message);
         return Results.BadRequest(new { error = ex.Message });
     }
 });
 
-app.MapGet("/api/stats", async (IEventStore eventStore, ILogger<Program> logger, string? customerId = "default") =>
+// 🔐 PROTECTED: Stats Endpoint - Customer from Bearer token (NO customerId parameter)
+app.MapGet("/api/stats", [Authorize] async (
+    IEventStore eventStore,
+    ILogger<Program> logger,
+    ClaimsPrincipal user) =>
 {
-    logger.LogInformation("Stats endpoint called with customerId: {CustomerId}", customerId);
+    var customerApiKeyHash = user.GetApiKeyHash();
+    var customerPrefix = user.GetApiKeyPrefix();
+
+    logger.LogInformation("Stats endpoint called for customer {CustomerPrefix}", customerPrefix);
+
     try
     {
-        var stats = await eventStore.GetStatsAsync(customerId ?? "default");
-        logger.LogInformation("Retrieved stats for customer {CustomerId}: {TotalEvents} events, ${TotalCost} cost",
-            customerId, stats.TotalEvents, stats.TotalCost);
+        var stats = await eventStore.GetStatsAsync(customerApiKeyHash!);
+        logger.LogInformation("Retrieved stats for customer {CustomerPrefix}: {TotalEvents} events, ${TotalCost} cost",
+            customerPrefix, stats.TotalEvents, stats.TotalCost);
         return Results.Ok(stats);
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Failed to retrieve stats for customer {CustomerId}: {ErrorMessage}", customerId, ex.Message);
+        logger.LogError(ex, "Failed to retrieve stats for customer {CustomerPrefix}: {ErrorMessage}",
+            customerPrefix, ex.Message);
         return Results.BadRequest(new { error = ex.Message });
     }
+});
+
+// 🔐 PROTECTED: Customer Info Endpoint (NEW)
+app.MapGet("/api/customer", [Authorize] async (ClaimsPrincipal user) =>
+{
+    return Results.Ok(new
+    {
+        apiKeyPrefix = user.GetApiKeyPrefix(),
+        email = user.GetCustomerEmail(),
+        organization = user.GetCustomerOrganization(),
+        authenticatedAt = DateTime.UtcNow
+    });
 });
 
 app.Run();
@@ -344,42 +399,4 @@ static string GetPayloadPreview(byte[] payload)
     }
 }
 
-// DTOs - Note: These duplicate the ones in Domain/Events but are needed for the API endpoints
-// TODO: Refactor to use the domain DTOs directly
-public record MpcEventDto(
-    string Id,
-    DateTime Timestamp,
-    string? CustomerId,
-    string Direction,
-    string? Method,
-    string Payload,
-    int Size,
-    int? RiskScore = null);
 
-public record EventBatchDto(
-    List<MpcEventDto> Events,
-    string? CliVersion = null,
-    string? BatchTimestamp = null);
-
-public record EventMetadata
-{
-    public DateTime ProcessedAt { get; set; }
-    public string Source { get; set; } = string.Empty;
-    public string Version { get; set; } = string.Empty;
-    public int? RiskScore { get; set; }
-    public decimal? CostEstimate { get; set; }
-}
-
-public record MpcEvent
-{
-    public string Id { get; set; } = string.Empty;
-    public DateTime Timestamp { get; set; }
-    public string CustomerId { get; set; } = string.Empty;
-    public string Direction { get; set; } = string.Empty;
-    public string? Method { get; set; }
-    public byte[] Payload { get; set; } = Array.Empty<byte>();
-    public int Size { get; set; }
-    public EventMetadata Metadata { get; set; } = new();
-}
-
-// ActivityStats is now defined in Domain.Services.IEventStore
