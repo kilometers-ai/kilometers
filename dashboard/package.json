@@ -2,6 +2,7 @@
   "name": "my-v0-project",
   "version": "0.1.0",
   "private": true,
+  "//": "Fix: Added skip_app_build to prevent Azure Oryx from overwriting GitHub Actions build",
   "scripts": {
     "build": "next build",
     "dev": "next dev",
