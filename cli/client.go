@@ -104,13 +104,15 @@ func (c *APIClient) SendEventBatch(events []Event) error {
 	batchDto := EventBatchDto{
 		Events:         eventDtos,
 		CliVersion:     "1.0.0", // TODO: Make this configurable
-		BatchTimestamp: time.Now().Format(time.RFC3339),
+		BatchTimestamp: time.Now().UTC().Format(time.RFC3339),
 	}
 
 	jsonData, err := json.Marshal(batchDto)
 	if err != nil {
 		return fmt.Errorf("failed to marshal batch: %w", err)
 	}
+
+	c.logger.Printf("Sending JSON payload: %s", string(jsonData))
 
 	req, err := http.NewRequest("POST", c.endpoint+"/api/events/batch", bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -194,7 +196,7 @@ func (c *APIClient) TestConnection() error {
 func (c *APIClient) eventToDTO(event Event) EventDto {
 	return EventDto{
 		ID:        event.ID,
-		Timestamp: event.Timestamp.Format(time.RFC3339),
+		Timestamp: event.Timestamp.UTC().Format(time.RFC3339),
 		Direction: event.Direction,
 		Method:    event.Method,
 		Payload:   base64.StdEncoding.EncodeToString(event.Payload),

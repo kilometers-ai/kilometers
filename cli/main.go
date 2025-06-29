@@ -243,6 +243,9 @@ func (pw *ProcessWrapper) Wait() error {
 	// Wait for the process to finish
 	err := pw.cmd.Wait()
 
+	// Give a brief moment for any final events to be processed
+	time.Sleep(100 * time.Millisecond)
+
 	// Close the events channel to signal event processor to stop
 	close(pw.events)
 
@@ -256,6 +259,12 @@ func (pw *ProcessWrapper) Wait() error {
 func (pw *ProcessWrapper) monitorStdin() {
 	defer pw.wg.Done()
 	defer pw.stdin.Close()
+	defer func() {
+		if r := recover(); r != nil {
+			// Gracefully handle panic from closed channel
+			pw.logger.Printf("Monitor stdin exiting: %v", r)
+		}
+	}()
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
@@ -317,6 +326,12 @@ func (pw *ProcessWrapper) monitorStdin() {
 // monitorStdout reads from the wrapped process stdout and forwards to os.Stdout while monitoring
 func (pw *ProcessWrapper) monitorStdout() {
 	defer pw.wg.Done()
+	defer func() {
+		if r := recover(); r != nil {
+			// Gracefully handle panic from closed channel
+			pw.logger.Printf("Monitor stdout exiting: %v", r)
+		}
+	}()
 
 	scanner := bufio.NewScanner(pw.stdout)
 	for scanner.Scan() {
@@ -528,4 +543,5 @@ func (pw *ProcessWrapper) printFilteringStats() {
 		pw.logger.Printf("No events processed yet")
 	}
 }
+
 // Date-based build test Sat Jun 28 03:52:01 EDT 2025

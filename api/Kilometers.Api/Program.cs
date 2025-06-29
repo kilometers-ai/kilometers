@@ -261,6 +261,10 @@ app.MapPost("/api/events/batch", [Authorize] async (
 
     try
     {
+        // DEBUG: Log exact hash being used for storage
+        logger.LogInformation("🔍 STORAGE DEBUG: customerApiKeyHash='{Hash}', customerPrefix='{Prefix}'",
+            customerApiKeyHash, customerPrefix);
+
         var events = batch.Events.Select(dto =>
         {
             return new MpcEvent
@@ -308,6 +312,10 @@ app.MapGet("/api/activity", [Authorize] async (
 
     logger.LogInformation("Activity endpoint called for customer {CustomerPrefix}, limit: {Limit}",
         customerPrefix, limit);
+
+    // DEBUG: Log exact hash being used for retrieval
+    logger.LogInformation("🔍 RETRIEVAL DEBUG: customerApiKeyHash='{Hash}', customerPrefix='{Prefix}'",
+        customerApiKeyHash, customerPrefix);
 
     try
     {
