@@ -42,6 +42,14 @@ if (builder.Environment.IsProduction())
 
 // Add services to the container
 builder.Services.AddControllers();
+
+// 🔧 Configure JSON serialization to handle camelCase from CLI
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    options.SerializerOptions.PropertyNameCaseInsensitive = true;
+});
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 

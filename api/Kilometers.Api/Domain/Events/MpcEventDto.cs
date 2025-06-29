@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using System.Text.Json;
+
 namespace Kilometers.Api.Domain.Events;
 
 /// <summary>
@@ -27,14 +30,48 @@ public record MpcEventDto
     public string? Method { get; init; }
 
     /// <summary>
-    /// Raw JSON payload of the MCP message
+    /// Raw JSON payload as base64 string from CLI, converted to byte array
     /// </summary>
+    [JsonConverter(typeof(Base64PayloadConverter))]
     public byte[] Payload { get; init; } = Array.Empty<byte>();
 
     /// <summary>
     /// Size of the payload in bytes
     /// </summary>
     public int Size { get; init; }
+}
+
+/// <summary>
+/// Custom JSON converter to handle base64 payload from CLI
+/// </summary>
+public class Base64PayloadConverter : JsonConverter<byte[]>
+{
+    public override byte[] Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.String)
+        {
+            var base64String = reader.GetString();
+            if (string.IsNullOrEmpty(base64String))
+                return Array.Empty<byte>();
+
+            try
+            {
+                return Convert.FromBase64String(base64String);
+            }
+            catch (FormatException)
+            {
+                // If it's not valid base64, treat as UTF8 string
+                return System.Text.Encoding.UTF8.GetBytes(base64String);
+            }
+        }
+
+        throw new JsonException($"Expected string token for base64 payload, got {reader.TokenType}");
+    }
+
+    public override void Write(Utf8JsonWriter writer, byte[] value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(Convert.ToBase64String(value));
+    }
 }
 
 /// <summary>
