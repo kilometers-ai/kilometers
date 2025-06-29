@@ -201,7 +201,11 @@ resource "azurerm_linux_web_app" "api" {
     cors {
       allowed_origins = concat(
         ["https://app.kilometers.ai", "https://kilometers.ai"],
-        var.environment == "dev" ? ["https://localhost:3000", "http://localhost:3000"] : []
+        var.environment == "dev" ? [
+          "https://localhost:3000",
+          "http://localhost:3000",
+          "https://app.dev.kilometers.ai"
+        ] : []
       )
     }
 
@@ -229,6 +233,9 @@ resource "azurerm_linux_web_app" "api" {
 
   depends_on = [module.key_vault, module.database]
 }
+
+# TODO: Add custom domain binding for API (api.dev.kilometers.ai)
+# Manual configuration required until terraform resource type is resolved
 
 # Grant API managed identity access to Key Vault
 resource "azurerm_role_assignment" "api_keyvault_reader" {

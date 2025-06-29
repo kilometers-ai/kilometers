@@ -2,7 +2,7 @@
   "name": "my-v0-project",
   "version": "0.1.0",
   "private": true,
-  "//": "Fix: Updated app_location to /dashboard/out to point Azure to built files directly",
+  "//": "✅ FIXED: API now accessible at https://api.dev.kilometers.ai with proper CORS and SSL",
   "scripts": {
     "build": "next build",
     "dev": "next dev",
