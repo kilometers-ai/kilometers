@@ -494,7 +494,7 @@ Generate real events using your CLI to validate end-to-end flow:
 
 ```bash
 # Run your demo script to generate events
-cd /projects/kilometers.ai/kilometers
+cd /Users/milesangelo/Source/active/kilometers.ai/kilometers
 ./demo.sh
 
 # Or manually test CLI

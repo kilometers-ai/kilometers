@@ -281,8 +281,8 @@ module "dashboard_static_web_app" {
     # Dashboard-specific settings will be added here as needed
   }
 
-  # Dashboard will be hosted at app.kilometers.ai in production
-  custom_domains = var.environment == "prod" ? ["app.kilometers.ai"] : []
+  # Dashboard will be hosted at app.kilometers.ai in production, app.dev.kilometers.ai in dev
+  custom_domains = var.environment == "prod" ? ["app.kilometers.ai"] : ["app.dev.kilometers.ai"]
 
   tags = local.tags
 }

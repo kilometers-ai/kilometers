@@ -4,7 +4,7 @@ set -e
 echo "🔧 Fixing DNS CNAME for get.kilometers.ai to point to CDN endpoint..."
 
 # Ensure we're in the terraform directory
-cd /projects/kilometers/terraform
+cd /Users/milesangelo/Source/active/kilometers/terraform
 
 # Check the planned changes
 echo "📋 Reviewing planned changes..."

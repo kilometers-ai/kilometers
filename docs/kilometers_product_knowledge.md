@@ -36,7 +36,7 @@
 
 ### Current State (In Migration)
 ```
-/projects/kilometers.ai/
+/Users/milesangelo/Source/active/kilometers.ai/
 ├── kilometers/                    # 🟡 Original monorepo (active)
 │   ├── api/                      # .NET 9 API backend
 │   ├── cli/                      # Go CLI tool (km binary)

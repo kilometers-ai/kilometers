@@ -3,7 +3,7 @@ set -e
 
 echo "🔧 Importing existing CDN custom domain instead of recreating..."
 
-cd /projects/kilometers.ai/kilometers/terraform
+cd /Users/milesangelo/Source/active/kilometers.ai/kilometers/terraform
 
 # Remove the problematic resource from terraform state
 echo "📤 Removing custom domain from terraform state..."

@@ -3,7 +3,7 @@ set -e
 
 echo "🔄 Setting up automated install URL injection into marketing deployment..."
 
-cd /projects/kilometers.ai/kilometers
+cd /Users/milesangelo/Source/active/kilometers.ai/kilometers
 
 # 1. Add install URL to Terraform GitHub Secrets
 echo "1️⃣ Adding install URL to Terraform outputs..."

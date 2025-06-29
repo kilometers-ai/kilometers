@@ -3,7 +3,7 @@ set -e
 
 echo "🔧 Fixing CDN origin to use static website hosting endpoint..."
 
-cd /projects/kilometers.ai/kilometers/terraform/modules/cli-distribution
+cd /Users/milesangelo/Source/active/kilometers.ai/kilometers/terraform/modules/cli-distribution
 
 # Create backup
 cp main.tf main.tf.backup
@@ -18,7 +18,7 @@ echo "   Before: primary_blob_host (container-based routing)"
 echo "   After:  primary_web_host (static website routing)"
 echo ""
 echo "🚀 Apply the fix:"
-echo "   cd /projects/kilometers.ai/kilometers/terraform"
+echo "   cd /Users/milesangelo/Source/active/kilometers.ai/kilometers/terraform"
 echo "   terraform plan -var-file=config/dev.tfvars"
 echo "   terraform apply -var-file=config/dev.tfvars"
 echo ""

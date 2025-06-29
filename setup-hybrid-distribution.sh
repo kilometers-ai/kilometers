@@ -10,7 +10,7 @@ echo "   • Marketing: Branded get.kilometers.ai domain works"
 echo "   • Fallback: GitHub raw URL also works"
 echo ""
 
-cd /projects/kilometers.ai/kilometers
+cd /Users/milesangelo/Source/active/kilometers.ai/kilometers
 
 # 1. Set up GitHub Releases (reliable binary hosting)
 echo "1️⃣ Setting up GitHub Releases workflow..."
