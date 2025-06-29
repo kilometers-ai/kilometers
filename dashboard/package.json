@@ -2,7 +2,7 @@
   "name": "my-v0-project",
   "version": "0.1.0",
   "private": true,
-  "//": "Fix: Added skip_app_build to prevent Azure Oryx from overwriting GitHub Actions build",
+  "//": "Fix: Updated app_location to /dashboard/out to point Azure to built files directly",
   "scripts": {
     "build": "next build",
     "dev": "next dev",
