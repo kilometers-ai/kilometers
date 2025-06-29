@@ -63,6 +63,24 @@
 - Azure CLI for deployment
 - PostgreSQL client for database work
 
+### Authentication Infrastructure (VALIDATED) ⭐ NEW
+```bash
+# Complete Authentication Setup (Single Command)
+./setup_auth.sh
+
+# What this creates:
+# ✅ CLI Config: ~/.config/kilometers/config.json
+# ✅ Dashboard Env: dashboard/.env.local  
+# ✅ Database Migration: EF Core schema update
+# ✅ API Key Distribution: Same key across all components
+# ✅ Bearer Token Flow: Enterprise JWT authentication
+
+# Validation Results (June 29, 2025):
+# API Key: +r(qw5zG#I((Nq36?bYD*7>HBdcxVqay
+# Database: customer_api_key_hash schema implemented
+# Authentication: Bearer token validation operational
+```
+
 ### Production Environment (OPERATIONAL)
 ```bash
 # Production API Health Check

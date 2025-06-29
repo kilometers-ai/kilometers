@@ -24,7 +24,7 @@ jobs:
     name: Build CLI Binaries
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.version.outputs.version }}  # Export version for other jobs
+      version: ${{ steps.version.outputs.version }} # Export version for other jobs
 
     strategy:
       matrix:
@@ -80,7 +80,7 @@ jobs:
             VERSION="cli-v${DATE_VERSION}.${BUILD_NUMBER}"
             echo "Auto-generated date-based version: ${VERSION}"
           fi
-          
+
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "Final version: ${VERSION}"
 
@@ -124,7 +124,7 @@ jobs:
     name: Create Release
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'  # Only create releases for actual builds
+    if: github.event_name != 'pull_request' # Only create releases for actual builds
     permissions:
       contents: write
 
@@ -154,7 +154,7 @@ jobs:
           files: release/*
           body: |
             # Kilometers CLI ${{ needs.build.outputs.version }}
-            
+
             **🗓️ Date-based automatic release** 
             This version was automatically generated and released when CLI changes were pushed to main.
 
@@ -179,7 +179,7 @@ jobs:
     name: Deploy to CDN
     needs: [build, release]
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'  # Only deploy for actual releases
+    if: github.event_name != 'pull_request' # Only deploy for actual releases
     permissions:
       contents: read
       id-token: write
@@ -308,7 +308,7 @@ jobs:
             az storage blob upload \
               --auth-mode login \
               --account-name "${STORAGE_ACCOUNT}" \
-              --container-name '\$web' \
+              --container-name '$web' \
               --name "index.html" \
               --file "scripts/index.html" \
               --content-type "text/html" \
