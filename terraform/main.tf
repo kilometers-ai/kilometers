@@ -352,7 +352,7 @@ data "github_repository" "main" {
 resource "github_actions_secret" "api_url" {
   repository      = data.github_repository.main.name
   secret_name     = "API_URL"
-  plaintext_value = "https://${azurerm_linux_web_app.api.default_hostname}"
+  plaintext_value = var.environment == "dev" ? "https://api.dev.kilometers.ai" : "https://${azurerm_linux_web_app.api.default_hostname}"
 }
 
 resource "github_actions_secret" "api_app_service_name" {

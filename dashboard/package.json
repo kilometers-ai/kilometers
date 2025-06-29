@@ -2,7 +2,7 @@
   "name": "my-v0-project",
   "version": "0.1.0",
   "private": true,
-  "//": "✅ FIXED: API now accessible at https://api.dev.kilometers.ai with proper CORS and SSL",
+  "//": "🚀 REBUILD: Updated terraform to set API_URL secret to https://api.dev.kilometers.ai",
   "scripts": {
     "build": "next build",
     "dev": "next dev",

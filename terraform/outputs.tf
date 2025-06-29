@@ -12,7 +12,7 @@ output "resource_group_location" {
 # Api Outputs
 output "api_url" {
   description = "URL of the deployed API"
-  value       = "https://${azurerm_linux_web_app.api.default_hostname}"
+  value       = var.environment == "dev" ? "https://api.dev.kilometers.ai" : "https://${azurerm_linux_web_app.api.default_hostname}"
 }
 
 output "api_app_service_name" {
@@ -170,9 +170,9 @@ output "deployment_summary" {
   description = "Summary of deployed resources"
   value = {
     environment   = var.environment
-    api_url       = "https://${azurerm_linux_web_app.api.default_hostname}"
-    health_check  = "https://${azurerm_linux_web_app.api.default_hostname}/health"
-    swagger_ui    = "https://${azurerm_linux_web_app.api.default_hostname}/swagger"
+    api_url       = var.environment == "dev" ? "https://api.dev.kilometers.ai" : "https://${azurerm_linux_web_app.api.default_hostname}"
+    health_check  = var.environment == "dev" ? "https://api.dev.kilometers.ai/health" : "https://${azurerm_linux_web_app.api.default_hostname}/health"
+    swagger_ui    = var.environment == "dev" ? "https://api.dev.kilometers.ai/swagger" : "https://${azurerm_linux_web_app.api.default_hostname}/swagger"
     cli_install   = "curl -sSL https://get.kilometers.ai/install.sh | sh"
     dashboard_url = var.environment == "prod" ? "https://app.kilometers.ai" : "https://app.dev.kilometers.ai"
     marketing_url = "https://kilometers.ai"
