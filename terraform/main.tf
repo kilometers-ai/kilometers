@@ -218,6 +218,7 @@ resource "azurerm_linux_web_app" "api" {
     "APPLICATIONINSIGHTS_CONNECTION_STRING"   = azurerm_application_insights.main.connection_string
     "ConnectionStrings__Default"              = "@Microsoft.KeyVault(VaultName=${module.key_vault.key_vault_name};SecretName=database-connection-string)"
     "KeyVault__VaultUri"                      = module.key_vault.key_vault_uri
+    "KILOMETERS_API_KEY"                      = random_password.api_key.result
     "Logging__LogLevel__Default"              = var.environment == "prod" ? "Information" : "Debug"
     "Logging__LogLevel__Microsoft.AspNetCore" = "Warning"
   }
