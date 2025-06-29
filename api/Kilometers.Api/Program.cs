@@ -96,8 +96,13 @@ builder.Services.AddCors(options =>
         }
         else
         {
-            // More restrictive CORS in production
-            policy.WithOrigins("https://*.kilometers.ai") // Update with your domain
+            // More restrictive CORS in production - explicit domains required
+            policy.WithOrigins(
+                      "https://app.kilometers.ai",        // Production dashboard
+                      "https://app.dev.kilometers.ai",    // Development dashboard  
+                      "https://kilometers.ai",            // Marketing site
+                      "https://www.kilometers.ai"         // Marketing site www
+                  )
                   .AllowAnyMethod()
                   .AllowAnyHeader()
                   .AllowCredentials();
