@@ -16,9 +16,9 @@ public record MpcEvent
     public DateTime Timestamp { get; init; }
 
     /// <summary>
-    /// Customer/user identifier who owns this event
+    /// API key hash that identifies the customer who owns this event
     /// </summary>
-    public string CustomerId { get; init; } = string.Empty;
+    public string CustomerApiKeyHash { get; init; } = string.Empty;
 
     /// <summary>
     /// Direction of the message: "request" or "response"
@@ -48,13 +48,13 @@ public record MpcEvent
     /// <summary>
     /// Creates an MpcEvent from a DTO received from the CLI
     /// </summary>
-    public static MpcEvent FromDto(MpcEventDto dto, string customerId)
+    public static MpcEvent FromDto(MpcEventDto dto, string customerApiKeyHash)
     {
         return new MpcEvent
         {
             Id = dto.Id,
             Timestamp = dto.Timestamp,
-            CustomerId = customerId,
+            CustomerApiKeyHash = customerApiKeyHash,
             Direction = dto.Direction,
             Method = dto.Method,
             Payload = dto.Payload,

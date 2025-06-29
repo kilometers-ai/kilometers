@@ -27,29 +27,29 @@ public interface IEventStore
     /// <summary>
     /// Get recent events for a customer
     /// </summary>
-    /// <param name="customerId">Customer identifier</param>
+    /// <param name="customerApiKeyHash">Customer API key hash identifier</param>
     /// <param name="limit">Maximum number of events to return</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>List of recent events</returns>
-    Task<List<MpcEvent>> GetRecentAsync(string customerId, int limit = 100, CancellationToken cancellationToken = default);
+    Task<List<MpcEvent>> GetRecentAsync(string customerApiKeyHash, int limit = 100, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get events for a customer within a time range
     /// </summary>
-    /// <param name="customerId">Customer identifier</param>
+    /// <param name="customerApiKeyHash">Customer API key hash identifier</param>
     /// <param name="startTime">Start of time range</param>
     /// <param name="endTime">End of time range</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>List of events in the time range</returns>
-    Task<List<MpcEvent>> GetByTimeRangeAsync(string customerId, DateTime startTime, DateTime endTime, CancellationToken cancellationToken = default);
+    Task<List<MpcEvent>> GetByTimeRangeAsync(string customerApiKeyHash, DateTime startTime, DateTime endTime, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get aggregated statistics for a customer
     /// </summary>
-    /// <param name="customerId">Customer identifier</param>
+    /// <param name="customerApiKeyHash">Customer API key hash identifier</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Activity statistics</returns>
-    Task<ActivityStats> GetStatsAsync(string customerId, CancellationToken cancellationToken = default);
+    Task<ActivityStats> GetStatsAsync(string customerApiKeyHash, CancellationToken cancellationToken = default);
 }
 
 /// <summary>

@@ -25,7 +25,7 @@ public class PostgresEventStore : IEventStore
         {
             Id = mpcEvent.Id,
             Timestamp = mpcEvent.Timestamp,
-            CustomerId = mpcEvent.CustomerId,
+            CustomerApiKeyHash = mpcEvent.CustomerApiKeyHash,
             Direction = mpcEvent.Direction,
             Method = mpcEvent.Method,
             Payload = mpcEvent.Payload,
@@ -40,7 +40,7 @@ public class PostgresEventStore : IEventStore
         _context.Events.Add(entity);
         await _context.SaveChangesAsync(cancellationToken);
 
-        _logger.LogDebug("Stored event {EventId} for customer {CustomerId}", mpcEvent.Id, mpcEvent.CustomerId);
+        _logger.LogDebug("Stored event {EventId} for customer {CustomerApiKeyHash}", mpcEvent.Id, mpcEvent.CustomerApiKeyHash);
     }
 
     public async Task AppendBatchAsync(IEnumerable<MpcEvent> events, CancellationToken cancellationToken = default)
@@ -49,7 +49,7 @@ public class PostgresEventStore : IEventStore
         {
             Id = evt.Id,
             Timestamp = evt.Timestamp,
-            CustomerId = evt.CustomerId,
+            CustomerApiKeyHash = evt.CustomerApiKeyHash,
             Direction = evt.Direction,
             Method = evt.Method,
             Payload = evt.Payload,
@@ -67,24 +67,24 @@ public class PostgresEventStore : IEventStore
         _logger.LogDebug("Stored batch of {Count} events", entities.Count);
     }
 
-    public async Task<List<MpcEvent>> GetRecentAsync(string customerId, int limit = 100, CancellationToken cancellationToken = default)
+    public async Task<List<MpcEvent>> GetRecentAsync(string customerApiKeyHash, int limit = 100, CancellationToken cancellationToken = default)
     {
         var entities = await _context.Events
-            .Where(e => e.CustomerId == customerId)
+            .Where(e => e.CustomerApiKeyHash == customerApiKeyHash)
             .OrderByDescending(e => e.Timestamp)
             .Take(limit)
             .ToListAsync(cancellationToken);
 
         var events = entities.Select(EntityToEvent).ToList();
 
-        _logger.LogDebug("Retrieved {Count} recent events for customer {CustomerId}", events.Count, customerId);
+        _logger.LogDebug("Retrieved {Count} recent events for customer {CustomerApiKeyHash}", events.Count, customerApiKeyHash);
         return events;
     }
 
-    public async Task<List<MpcEvent>> GetByTimeRangeAsync(string customerId, DateTime startTime, DateTime endTime, CancellationToken cancellationToken = default)
+    public async Task<List<MpcEvent>> GetByTimeRangeAsync(string customerApiKeyHash, DateTime startTime, DateTime endTime, CancellationToken cancellationToken = default)
     {
         var entities = await _context.Events
-            .Where(e => e.CustomerId == customerId &&
+            .Where(e => e.CustomerApiKeyHash == customerApiKeyHash &&
                        e.Timestamp >= startTime &&
                        e.Timestamp <= endTime)
             .OrderByDescending(e => e.Timestamp)
@@ -92,16 +92,16 @@ public class PostgresEventStore : IEventStore
 
         var events = entities.Select(EntityToEvent).ToList();
 
-        _logger.LogDebug("Retrieved {Count} events for customer {CustomerId} in time range {StartTime} to {EndTime}",
-            events.Count, customerId, startTime, endTime);
+        _logger.LogDebug("Retrieved {Count} events for customer {CustomerApiKeyHash} in time range {StartTime} to {EndTime}",
+            events.Count, customerApiKeyHash, startTime, endTime);
 
         return events;
     }
 
-    public async Task<ActivityStats> GetStatsAsync(string customerId, CancellationToken cancellationToken = default)
+    public async Task<ActivityStats> GetStatsAsync(string customerApiKeyHash, CancellationToken cancellationToken = default)
     {
         var customerEvents = await _context.Events
-            .Where(e => e.CustomerId == customerId)
+            .Where(e => e.CustomerApiKeyHash == customerApiKeyHash)
             .ToListAsync(cancellationToken);
 
         if (!customerEvents.Any())
@@ -122,8 +122,8 @@ public class PostgresEventStore : IEventStore
             EndTime = customerEvents.Max(e => e.Timestamp)
         };
 
-        _logger.LogDebug("Generated stats for customer {CustomerId}: {TotalEvents} events, {UniqueMethods} methods",
-            customerId, stats.TotalEvents, stats.UniqueMethods);
+        _logger.LogDebug("Generated stats for customer {CustomerApiKeyHash}: {TotalEvents} events, {UniqueMethods} methods",
+            customerApiKeyHash, stats.TotalEvents, stats.UniqueMethods);
 
         return stats;
     }
@@ -134,7 +134,7 @@ public class PostgresEventStore : IEventStore
         {
             Id = entity.Id,
             Timestamp = entity.Timestamp,
-            CustomerId = entity.CustomerId,
+            CustomerApiKeyHash = entity.CustomerApiKeyHash,
             Direction = entity.Direction,
             Method = entity.Method,
             Payload = entity.Payload,

@@ -30,7 +30,7 @@ public class KilometersDbContext : DbContext
             entity.Property(e => e.Timestamp)
                 .IsRequired();
 
-            entity.Property(e => e.CustomerId)
+            entity.Property(e => e.CustomerApiKeyHash)
                 .HasMaxLength(255)
                 .IsRequired();
 
@@ -62,14 +62,14 @@ public class KilometersDbContext : DbContext
                 .HasPrecision(10, 4);
 
             // Indexes for performance
-            entity.HasIndex(e => new { e.CustomerId, e.Timestamp })
+            entity.HasIndex(e => new { e.CustomerApiKeyHash, e.Timestamp })
                 .HasDatabaseName("idx_customer_timestamp")
-                .IsDescending(false, true); // CustomerId ASC, Timestamp DESC
+                .IsDescending(false, true); // CustomerApiKeyHash ASC, Timestamp DESC
 
-            entity.HasIndex(e => new { e.CustomerId, e.Method })
+            entity.HasIndex(e => new { e.CustomerApiKeyHash, e.Method })
                 .HasDatabaseName("idx_customer_method");
 
-            entity.HasIndex(e => new { e.CustomerId, e.Direction })
+            entity.HasIndex(e => new { e.CustomerApiKeyHash, e.Direction })
                 .HasDatabaseName("idx_customer_direction");
         });
     }
@@ -82,7 +82,7 @@ public class EventEntity
 {
     public string Id { get; set; } = string.Empty;
     public DateTime Timestamp { get; set; }
-    public string CustomerId { get; set; } = string.Empty;
+    public string CustomerApiKeyHash { get; set; } = string.Empty;
     public string Direction { get; set; } = string.Empty;
     public string? Method { get; set; }
     public byte[] Payload { get; set; } = Array.Empty<byte>();

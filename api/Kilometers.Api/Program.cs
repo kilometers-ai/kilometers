@@ -205,7 +205,7 @@ app.MapPost("/api/events", [Authorize] async (
         {
             Id = eventDto.Id,
             Timestamp = eventDto.Timestamp,
-            CustomerId = customerApiKeyHash!, // From authenticated user
+            CustomerApiKeyHash = customerApiKeyHash!, // From authenticated user
             Direction = eventDto.Direction,
             Method = eventDto.Method,
             Payload = eventDto.Payload, // Already byte[] in domain DTO
@@ -254,7 +254,7 @@ app.MapPost("/api/events/batch", [Authorize] async (
             {
                 Id = dto.Id,
                 Timestamp = dto.Timestamp,
-                CustomerId = customerApiKeyHash!, // From authenticated user
+                CustomerApiKeyHash = customerApiKeyHash!, // From authenticated user
                 Direction = dto.Direction,
                 Method = dto.Method,
                 Payload = dto.Payload, // Already byte[] in domain DTO

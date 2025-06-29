@@ -21,7 +21,7 @@ public class InMemoryEventStore : IEventStore
     public Task AppendAsync(MpcEvent mpcEvent, CancellationToken cancellationToken = default)
     {
         _events.Add(mpcEvent);
-        _logger.LogDebug("Stored event {EventId} for customer {CustomerId}", mpcEvent.Id, mpcEvent.CustomerId);
+        _logger.LogDebug("Stored event {EventId} for customer {CustomerApiKeyHash}", mpcEvent.Id, mpcEvent.CustomerApiKeyHash);
         return Task.CompletedTask;
     }
 
@@ -37,36 +37,36 @@ public class InMemoryEventStore : IEventStore
         return Task.CompletedTask;
     }
 
-    public Task<List<MpcEvent>> GetRecentAsync(string customerId, int limit = 100, CancellationToken cancellationToken = default)
+    public Task<List<MpcEvent>> GetRecentAsync(string customerApiKeyHash, int limit = 100, CancellationToken cancellationToken = default)
     {
         var recentEvents = _events
-            .Where(e => e.CustomerId == customerId)
+            .Where(e => e.CustomerApiKeyHash == customerApiKeyHash)
             .OrderByDescending(e => e.Timestamp)
             .Take(limit)
             .ToList();
 
-        _logger.LogDebug("Retrieved {Count} recent events for customer {CustomerId}", recentEvents.Count, customerId);
+        _logger.LogDebug("Retrieved {Count} recent events for customer {CustomerApiKeyHash}", recentEvents.Count, customerApiKeyHash);
         return Task.FromResult(recentEvents);
     }
 
-    public Task<List<MpcEvent>> GetByTimeRangeAsync(string customerId, DateTime startTime, DateTime endTime, CancellationToken cancellationToken = default)
+    public Task<List<MpcEvent>> GetByTimeRangeAsync(string customerApiKeyHash, DateTime startTime, DateTime endTime, CancellationToken cancellationToken = default)
     {
         var events = _events
-            .Where(e => e.CustomerId == customerId &&
+            .Where(e => e.CustomerApiKeyHash == customerApiKeyHash &&
                        e.Timestamp >= startTime &&
                        e.Timestamp <= endTime)
             .OrderByDescending(e => e.Timestamp)
             .ToList();
 
-        _logger.LogDebug("Retrieved {Count} events for customer {CustomerId} in time range {StartTime} to {EndTime}",
-            events.Count, customerId, startTime, endTime);
+        _logger.LogDebug("Retrieved {Count} events for customer {CustomerApiKeyHash} in time range {StartTime} to {EndTime}",
+            events.Count, customerApiKeyHash, startTime, endTime);
 
         return Task.FromResult(events);
     }
 
-    public Task<ActivityStats> GetStatsAsync(string customerId, CancellationToken cancellationToken = default)
+    public Task<ActivityStats> GetStatsAsync(string customerApiKeyHash, CancellationToken cancellationToken = default)
     {
-        var customerEvents = _events.Where(e => e.CustomerId == customerId).ToList();
+        var customerEvents = _events.Where(e => e.CustomerApiKeyHash == customerApiKeyHash).ToList();
 
         if (!customerEvents.Any())
         {
@@ -86,8 +86,8 @@ public class InMemoryEventStore : IEventStore
             EndTime = customerEvents.Max(e => e.Timestamp)
         };
 
-        _logger.LogDebug("Generated stats for customer {CustomerId}: {TotalEvents} events, {UniqueMethods} methods",
-            customerId, stats.TotalEvents, stats.UniqueMethods);
+        _logger.LogDebug("Generated stats for customer {CustomerApiKeyHash}: {TotalEvents} events, {UniqueMethods} methods",
+            customerApiKeyHash, stats.TotalEvents, stats.UniqueMethods);
 
         return Task.FromResult(stats);
     }
